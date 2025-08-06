@@ -45,10 +45,10 @@ public class PluginLifecycleTest {
 
     @Test
     public void testPluginInfoGetters() {
-        PluginLifecycle.PluginInfo info = new PluginLifecycle.PluginInfo("kafka", "KafkaProtocolAdapter", "2.1.0", false);
+        PluginLifecycle.PluginInfo info = new PluginLifecycle.PluginInfo("kafka", "RawKafkaProtocolAdapter", "2.1.0", false);
         
         assertEquals("kafka", info.getProtocolType());
-        assertEquals("KafkaProtocolAdapter", info.getClassName());
+        assertEquals("RawKafkaProtocolAdapter", info.getClassName());
         assertEquals("2.1.0", info.getVersion());
         assertFalse(info.isLoaded());
     }

@@ -1,1 +1,1 @@
-org.apache.eventmesh.protocol.kafka.native.NativeKafkaProtocolAdapter 
+org.apache.eventmesh.protocol.kafka.raw.RawKafkaProtocolAdapter 

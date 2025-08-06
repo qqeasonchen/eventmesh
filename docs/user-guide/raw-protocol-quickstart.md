@@ -1,4 +1,4 @@
-# EventMesh 原生协议支持快速入门
+# EventMesh 原始协议支持快速入门
 
 ## 5分钟快速体验
 
@@ -10,9 +10,9 @@ wget https://downloads.apache.org/eventmesh/1.9.0/apache-eventmesh-1.9.0-bin.tar
 tar -xzf apache-eventmesh-1.9.0-bin.tar.gz
 cd apache-eventmesh-1.9.0
 
-# 配置原生协议支持
+# 配置原始协议支持
 cat >> conf/eventmesh.properties << EOF
-# 启用原生协议支持
+# 启用原始协议支持
 eventmesh.raw.protocol.enabled=true
 eventmesh.raw.kafka.enabled=true
 eventmesh.raw.kafka.port=9092
@@ -26,7 +26,7 @@ EOF
 ./bin/eventmesh-start.sh
 ```
 
-### 2. 测试 Kafka 原生客户端
+### 2. 测试 Kafka 原始客户端
 
 ```java
 // 创建测试文件 KafkaTest.java
@@ -68,7 +68,7 @@ public class KafkaTest {
 }
 ```
 
-### 3. 测试 Pulsar 原生客户端
+### 3. 测试 Pulsar 原始客户端
 
 ```java
 // 创建测试文件 PulsarTest.java
@@ -102,7 +102,7 @@ public class PulsarTest {
 }
 ```
 
-### 4. 测试 RocketMQ 原生客户端
+### 4. 测试 RocketMQ 原始客户端
 
 ```java
 // 创建测试文件 RocketMQTest.java

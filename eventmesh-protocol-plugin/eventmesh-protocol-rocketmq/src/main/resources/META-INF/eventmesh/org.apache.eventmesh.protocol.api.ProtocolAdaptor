@@ -1,1 +1,1 @@
-org.apache.eventmesh.protocol.rocketmq.native.NativeRocketMQProtocolAdapter 
+org.apache.eventmesh.protocol.rocketmq.raw.RawRocketMQProtocolAdapter 

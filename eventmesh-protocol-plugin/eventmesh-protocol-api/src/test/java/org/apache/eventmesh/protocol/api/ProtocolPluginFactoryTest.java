@@ -19,12 +19,12 @@ package org.apache.eventmesh.protocol.api;
 
 import org.apache.eventmesh.common.protocol.ProtocolTransportObject;
 import org.apache.eventmesh.protocol.api.exception.ProtocolHandleException;
-import org.apache.eventmesh.protocol.kafka.KafkaProtocolAdapter;
-import org.apache.eventmesh.protocol.kafka.message.KafkaMessage;
-import org.apache.eventmesh.protocol.pulsar.PulsarProtocolAdapter;
-import org.apache.eventmesh.protocol.pulsar.message.PulsarMessage;
-import org.apache.eventmesh.protocol.rocketmq.RocketMQProtocolAdapter;
-import org.apache.eventmesh.protocol.rocketmq.message.RocketMQMessage;
+import org.apache.eventmesh.protocol.kafka.raw.RawKafkaProtocolAdapter;
+import org.apache.eventmesh.protocol.kafka.raw.message.RawKafkaMessage;
+import org.apache.eventmesh.protocol.pulsar.raw.RawPulsarProtocolAdapter;
+import org.apache.eventmesh.protocol.pulsar.raw.message.RawPulsarMessage;
+import org.apache.eventmesh.protocol.rocketmq.raw.RawRocketMQProtocolAdapter;
+import org.apache.eventmesh.protocol.rocketmq.raw.message.RawRocketMQMessage;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -44,13 +44,13 @@ import static org.mockito.Mockito.*;
 public class ProtocolPluginFactoryTest {
 
     @Mock
-    private KafkaMessage mockKafkaMessage;
+    private RawKafkaMessage mockKafkaMessage;
     
     @Mock
-    private PulsarMessage mockPulsarMessage;
+    private RawPulsarMessage mockPulsarMessage;
     
     @Mock
-    private RocketMQMessage mockRocketMQMessage;
+    private RawRocketMQMessage mockRocketMQMessage;
 
     @BeforeEach
     public void setUp() {
@@ -128,43 +128,43 @@ public class ProtocolPluginFactoryTest {
     @Test
     public void testTransmitDirectly() throws Exception {
         // Test Kafka direct transmission
-        KafkaMessage kafkaMessage = new KafkaMessage();
+        RawKafkaMessage kafkaMessage = new RawKafkaMessage();
         kafkaMessage.setTopic("test-topic");
         kafkaMessage.setKey("test-key");
         kafkaMessage.setValue("test-value".getBytes());
 
         ProtocolTransportObject transmittedKafka = ProtocolPluginFactory.transmitDirectly("kafka", "kafka", kafkaMessage);
         assertNotNull(transmittedKafka);
-        assertTrue(transmittedKafka instanceof KafkaMessage);
+        assertTrue(transmittedKafka instanceof RawKafkaMessage);
         assertEquals(kafkaMessage, transmittedKafka);
 
         // Test Pulsar direct transmission
-        PulsarMessage pulsarMessage = new PulsarMessage();
+                RawPulsarMessage pulsarMessage = new RawPulsarMessage();
         pulsarMessage.setTopicName("test-topic");
         pulsarMessage.setMessageId("test-id");
         pulsarMessage.setData("test-data".getBytes());
-
+        
         ProtocolTransportObject transmittedPulsar = ProtocolPluginFactory.transmitDirectly("pulsar", "pulsar", pulsarMessage);
         assertNotNull(transmittedPulsar);
-        assertTrue(transmittedPulsar instanceof PulsarMessage);
+        assertTrue(transmittedPulsar instanceof RawPulsarMessage);
         assertEquals(pulsarMessage, transmittedPulsar);
 
         // Test RocketMQ direct transmission
-        RocketMQMessage rocketmqMessage = new RocketMQMessage();
+                RawRocketMQMessage rocketmqMessage = new RawRocketMQMessage();
         rocketmqMessage.setTopic("test-topic");
         rocketmqMessage.setMessageId("test-id");
         rocketmqMessage.setBody("test-body".getBytes());
-
+        
         ProtocolTransportObject transmittedRocketMQ = ProtocolPluginFactory.transmitDirectly("rocketmq", "rocketmq", rocketmqMessage);
         assertNotNull(transmittedRocketMQ);
-        assertTrue(transmittedRocketMQ instanceof RocketMQMessage);
+        assertTrue(transmittedRocketMQ instanceof RawRocketMQMessage);
         assertEquals(rocketmqMessage, transmittedRocketMQ);
     }
 
     @Test
     public void testTransmitDirectlyWithDifferentProtocols() {
         // Test transmission between different protocols (should throw exception)
-        KafkaMessage kafkaMessage = new KafkaMessage();
+        RawKafkaMessage kafkaMessage = new RawKafkaMessage();
         kafkaMessage.setTopic("test-topic");
 
         assertThrows(IllegalArgumentException.class, () -> {
@@ -178,7 +178,7 @@ public class ProtocolPluginFactoryTest {
 
     @Test
     public void testTransmitDirectlyWithNonExistentProtocol() {
-        KafkaMessage kafkaMessage = new KafkaMessage();
+        RawKafkaMessage kafkaMessage = new RawKafkaMessage();
         kafkaMessage.setTopic("test-topic");
 
         assertThrows(IllegalArgumentException.class, () -> {

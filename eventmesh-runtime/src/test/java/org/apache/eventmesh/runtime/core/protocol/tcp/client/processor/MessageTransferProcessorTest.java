@@ -28,8 +28,8 @@ import org.apache.eventmesh.common.protocol.tcp.Package;
 import org.apache.eventmesh.metrics.api.MetricsRegistry;
 import org.apache.eventmesh.protocol.api.ProtocolAdaptor;
 import org.apache.eventmesh.protocol.api.ProtocolPluginFactory;
-import org.apache.eventmesh.protocol.kafka.KafkaProtocolAdapter;
-import org.apache.eventmesh.protocol.kafka.message.KafkaMessage;
+import org.apache.eventmesh.protocol.kafka.raw.RawKafkaProtocolAdapter;
+import org.apache.eventmesh.protocol.kafka.raw.message.RawKafkaMessage;
 import org.apache.eventmesh.runtime.acl.Acl;
 import org.apache.eventmesh.runtime.boot.EventMeshTCPServer;
 import org.apache.eventmesh.runtime.core.protocol.tcp.client.session.Session;
@@ -277,7 +277,7 @@ public class MessageTransferProcessorTest {
     @Test
     public void testHandleDirectTransmissionWithNonPackageObject() throws Exception {
         // Create a non-Package object
-        KafkaMessage kafkaMessage = new KafkaMessage();
+        RawKafkaMessage kafkaMessage = new RawKafkaMessage();
         kafkaMessage.setTopic("test-topic");
         
         // Test direct transmission handling with non-Package object

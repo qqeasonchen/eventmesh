@@ -1,14 +1,14 @@
-# EventMesh 原生协议支持使用指南
+# EventMesh 原始协议支持使用指南
 
 ## 概述
 
-EventMesh 原生协议支持功能允许 Kafka、Pulsar、RocketMQ 的原生客户端直接与 EventMesh 进行消息收发，无需修改客户端代码或进行协议转换。该功能通过协议透传优化，在相同协议间实现零转换开销，显著提升性能。
+EventMesh 原始协议支持功能允许 Kafka、Pulsar、RocketMQ 的原始客户端直接与 EventMesh 进行消息收发，无需修改客户端代码或进行协议转换。该功能通过协议透传优化，在相同协议间实现零转换开销，显著提升性能。
 
 ## 功能特性
 
 ### 🚀 核心特性
 
-- **原生客户端兼容**: 支持 Kafka、Pulsar、RocketMQ 原生客户端直接连接
+- **原始客户端兼容**: 支持 Kafka、Pulsar、RocketMQ 原始客户端直接连接
 - **协议透传优化**: 同协议间消息直接透传，避免 CloudEvent 转换开销
 - **自动协议识别**: 自动检测客户端协议类型，无需手动配置
 - **统一管理接口**: 提供统一的连接器管理和监控接口
@@ -31,26 +31,26 @@ EventMesh 原生协议支持功能允许 Kafka、Pulsar、RocketMQ 的原生客�
 ./bin/eventmesh-start.sh
 ```
 
-### 2. 启用原生协议支持
+### 2. 启用原始协议支持
 
-在 EventMesh 配置文件中启用原生协议支持：
+在 EventMesh 配置文件中启用原始协议支持：
 
 ```properties
 # eventmesh.properties
-# 启用原生协议支持
-eventmesh.native.protocol.enabled=true
+# 启用原始协议支持
+eventmesh.raw.protocol.enabled=true
 
-# Kafka 原生协议配置
-eventmesh.native.kafka.enabled=true
-eventmesh.native.kafka.port=9092
+# Kafka 原始协议配置
+eventmesh.raw.kafka.enabled=true
+eventmesh.raw.kafka.port=9092
 
-# Pulsar 原生协议配置
-eventmesh.native.pulsar.enabled=true
-eventmesh.native.pulsar.port=6650
+# Pulsar 原始协议配置
+eventmesh.raw.pulsar.enabled=true
+eventmesh.raw.pulsar.port=6650
 
-# RocketMQ 原生协议配置
-eventmesh.native.rocketmq.enabled=true
-eventmesh.native.rocketmq.port=9876
+# RocketMQ 原始协议配置
+eventmesh.raw.rocketmq.enabled=true
+eventmesh.raw.rocketmq.port=9876
 ```
 
 ### 3. 重启 EventMesh
@@ -65,100 +65,100 @@ eventmesh.native.rocketmq.port=9876
 ### 基础配置
 
 ```properties
-# 原生协议基础配置
-eventmesh.native.protocol.enabled=true
-eventmesh.native.protocol.host=0.0.0.0
-eventmesh.native.protocol.port=9092
-eventmesh.native.protocol.connectionTimeoutMs=30000
-eventmesh.native.protocol.keepaliveMs=60000
-eventmesh.native.protocol.maxConnections=1000
-eventmesh.native.protocol.maxMessageSize=1048576
+# 原始协议基础配置
+eventmesh.raw.protocol.enabled=true
+eventmesh.raw.protocol.host=0.0.0.0
+eventmesh.raw.protocol.port=9092
+eventmesh.raw.protocol.connectionTimeoutMs=30000
+eventmesh.raw.protocol.keepaliveMs=60000
+eventmesh.raw.protocol.maxConnections=1000
+eventmesh.raw.protocol.maxMessageSize=1048576
 ```
 
-### Kafka 原生协议配置
+### Kafka 原始协议配置
 
 ```properties
-# Kafka 原生协议详细配置
-eventmesh.native.kafka.enabled=true
-eventmesh.native.kafka.port=9092
-eventmesh.native.kafka.maxMessageSize=1048576
-eventmesh.native.kafka.requestTimeoutMs=30000
-eventmesh.native.kafka.sessionTimeoutMs=10000
-eventmesh.native.kafka.heartbeatIntervalMs=3000
+# Kafka 原始协议详细配置
+eventmesh.raw.kafka.enabled=true
+eventmesh.raw.kafka.port=9092
+eventmesh.raw.kafka.maxMessageSize=1048576
+eventmesh.raw.kafka.requestTimeoutMs=30000
+eventmesh.raw.kafka.sessionTimeoutMs=10000
+eventmesh.raw.kafka.heartbeatIntervalMs=3000
 ```
 
-### Pulsar 原生协议配置
+### Pulsar 原始协议配置
 
 ```properties
-# Pulsar 原生协议详细配置
-eventmesh.native.pulsar.enabled=true
-eventmesh.native.pulsar.port=6650
-eventmesh.native.pulsar.maxMessageSize=5242880
-eventmesh.native.pulsar.connectionTimeoutMs=10000
-eventmesh.native.pulsar.operationTimeoutMs=30000
-eventmesh.native.pulsar.keepAliveIntervalMs=30000
+# Pulsar 原始协议详细配置
+eventmesh.raw.pulsar.enabled=true
+eventmesh.raw.pulsar.port=6650
+eventmesh.raw.pulsar.maxMessageSize=5242880
+eventmesh.raw.pulsar.connectionTimeoutMs=10000
+eventmesh.raw.pulsar.operationTimeoutMs=30000
+eventmesh.raw.pulsar.keepAliveIntervalMs=30000
 ```
 
-### RocketMQ 原生协议配置
+### RocketMQ 原始协议配置
 
 ```properties
-# RocketMQ 原生协议详细配置
-eventmesh.native.rocketmq.enabled=true
-eventmesh.native.rocketmq.port=9876
-eventmesh.native.rocketmq.maxMessageSize=4194304
-eventmesh.native.rocketmq.sendMsgTimeoutMs=3000
-eventmesh.native.rocketmq.heartbeatBrokerIntervalMs=30000
-eventmesh.native.rocketmq.persistConsumerOffsetIntervalMs=5000
+# RocketMQ 原始协议详细配置
+eventmesh.raw.rocketmq.enabled=true
+eventmesh.raw.rocketmq.port=9876
+eventmesh.raw.rocketmq.maxMessageSize=4194304
+eventmesh.raw.rocketmq.sendMsgTimeoutMs=3000
+eventmesh.raw.rocketmq.heartbeatBrokerIntervalMs=30000
+eventmesh.raw.rocketmq.persistConsumerOffsetIntervalMs=5000
 ```
 
 ### 性能优化配置
 
 ```properties
 # 传输优化配置
-eventmesh.native.transmission.optimization.enabled=true
-eventmesh.native.transmission.batch.size=1000
-eventmesh.native.transmission.timeout.ms=5000
-eventmesh.native.transmission.zeroCopy.enabled=true
-eventmesh.native.transmission.asyncProcessing.enabled=true
+eventmesh.raw.transmission.optimization.enabled=true
+eventmesh.raw.transmission.batch.size=1000
+eventmesh.raw.transmission.timeout.ms=5000
+eventmesh.raw.transmission.zeroCopy.enabled=true
+eventmesh.raw.transmission.asyncProcessing.enabled=true
 
 # 连接池配置
-eventmesh.native.connection.pool.size=100
-eventmesh.native.connection.pool.maxWaitMs=5000
-eventmesh.native.connection.pool.minIdle=10
-eventmesh.native.connection.pool.maxIdle=50
+eventmesh.raw.connection.pool.size=100
+eventmesh.raw.connection.pool.maxWaitMs=5000
+eventmesh.raw.connection.pool.minIdle=10
+eventmesh.raw.connection.pool.maxIdle=50
 ```
 
 ### 安全配置
 
 ```properties
 # SSL/TLS 配置
-eventmesh.native.security.ssl.enabled=false
-eventmesh.native.security.ssl.keyStorePath=/path/to/keystore.jks
-eventmesh.native.security.ssl.keyStorePassword=password
-eventmesh.native.security.ssl.trustStorePath=/path/to/truststore.jks
-eventmesh.native.security.ssl.trustStorePassword=password
-eventmesh.native.security.ssl.protocol=TLS
+eventmesh.raw.security.ssl.enabled=false
+eventmesh.raw.security.ssl.keyStorePath=/path/to/keystore.jks
+eventmesh.raw.security.ssl.keyStorePassword=password
+eventmesh.raw.security.ssl.trustStorePath=/path/to/truststore.jks
+eventmesh.raw.security.ssl.trustStorePassword=password
+eventmesh.raw.security.ssl.protocol=TLS
 
 # 认证配置
-eventmesh.native.security.authentication.enabled=false
-eventmesh.native.security.authentication.type=none
-eventmesh.native.security.sasl.mechanism=PLAIN
-eventmesh.native.security.sasl.username=user
-eventmesh.native.security.sasl.password=password
+eventmesh.raw.security.authentication.enabled=false
+eventmesh.raw.security.authentication.type=none
+eventmesh.raw.security.sasl.mechanism=PLAIN
+eventmesh.raw.security.sasl.username=user
+eventmesh.raw.security.sasl.password=password
 ```
 
 ### 监控配置
 
 ```properties
 # 监控配置
-eventmesh.native.monitoring.metrics.enabled=true
-eventmesh.native.monitoring.metrics.reportIntervalMs=60000
-eventmesh.native.monitoring.metrics.detailed.enabled=false
+eventmesh.raw.monitoring.metrics.enabled=true
+eventmesh.raw.monitoring.metrics.reportIntervalMs=60000
+eventmesh.raw.monitoring.metrics.detailed.enabled=false
 ```
 
 ## 客户端使用示例
 
-### Kafka 原生客户端
+### Kafka 原始客户端
 
 #### Java 客户端示例
 
@@ -172,7 +172,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecords;
 import java.util.Properties;
 import java.util.Arrays;
 
-public class KafkaNativeClientExample {
+public class KafkaRawClientExample {
     
     // 生产者示例
     public void producerExample() {
@@ -244,7 +244,7 @@ def consumer_example():
         print(f"Received: {message.value}")
 ```
 
-### Pulsar 原生客户端
+### Pulsar 原始客户端
 
 #### Java 客户端示例
 
@@ -254,7 +254,7 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Message;
 
-public class PulsarNativeClientExample {
+public class PulsarRawClientExample {
     
     // 生产者示例
     public void producerExample() throws Exception {
@@ -293,7 +293,7 @@ public class PulsarNativeClientExample {
 }
 ```
 
-### RocketMQ 原生客户端
+### RocketMQ 原始客户端
 
 #### Java 客户端示例
 
@@ -307,7 +307,7 @@ import org.apache.rocketmq.client.consumer.listener.MessageListenerConcurrently;
 import org.apache.rocketmq.common.message.Message;
 import org.apache.rocketmq.common.message.MessageExt;
 
-public class RocketMQNativeClientExample {
+public class RocketMQRawClientExample {
     
     // 生产者示例
     public void producerExample() throws Exception {
@@ -350,16 +350,16 @@ public class RocketMQNativeClientExample {
 ### 查看连接状态
 
 ```bash
-# 查看原生协议服务器状态
-curl -X GET http://localhost:10106/actuator/native-protocol/status
+# 查看原始协议服务器状态
+curl -X GET http://localhost:10106/actuator/raw-protocol/status
 
 # 查看连接器统计信息
-curl -X GET http://localhost:10106/actuator/native-protocol/stats
+curl -X GET http://localhost:10106/actuator/raw-protocol/stats
 ```
 
 ### 监控指标
 
-原生协议支持提供以下监控指标：
+原始协议支持提供以下监控指标：
 
 - **连接数**: 当前活跃连接数
 - **消息吞吐量**: 每秒处理消息数
@@ -370,11 +370,11 @@ curl -X GET http://localhost:10106/actuator/native-protocol/stats
 ### 日志监控
 
 ```bash
-# 查看原生协议相关日志
-tail -f logs/eventmesh.log | grep "NativeProtocol"
+# 查看原始协议相关日志
+tail -f logs/eventmesh.log | grep "RawProtocol"
 
 # 查看连接日志
-tail -f logs/eventmesh.log | grep "Native.*connected"
+tail -f logs/eventmesh.log | grep "Raw.*connected"
 ```
 
 ## 故障排查
@@ -426,9 +426,9 @@ grep "Detected protocol type" logs/eventmesh.log
 
 ```properties
 # 启用性能优化
-eventmesh.native.transmission.optimization.enabled=true
-eventmesh.native.transmission.batch.size=1000
-eventmesh.native.transmission.zeroCopy.enabled=true
+eventmesh.raw.transmission.optimization.enabled=true
+eventmesh.raw.transmission.batch.size=1000
+eventmesh.raw.transmission.zeroCopy.enabled=true
 ```
 
 ### 调试模式
@@ -437,7 +437,7 @@ eventmesh.native.transmission.zeroCopy.enabled=true
 
 ```properties
 # 启用调试日志
-logging.level.org.apache.eventmesh.runtime.core.protocol.native=DEBUG
+logging.level.org.apache.eventmesh.runtime.core.protocol.raw=DEBUG
 logging.level.org.apache.eventmesh.protocol=DEBUG
 ```
 
@@ -465,12 +465,12 @@ logging.level.org.apache.eventmesh.protocol=DEBUG
 
 ```properties
 # 高性能配置示例
-eventmesh.native.transmission.optimization.enabled=true
-eventmesh.native.transmission.batch.size=2000
-eventmesh.native.transmission.zeroCopy.enabled=true
-eventmesh.native.transmission.asyncProcessing.enabled=true
-eventmesh.native.connection.pool.size=200
-eventmesh.native.connection.pool.maxIdle=100
+eventmesh.raw.transmission.optimization.enabled=true
+eventmesh.raw.transmission.batch.size=2000
+eventmesh.raw.transmission.zeroCopy.enabled=true
+eventmesh.raw.transmission.asyncProcessing.enabled=true
+eventmesh.raw.connection.pool.size=200
+eventmesh.raw.connection.pool.maxIdle=100
 ```
 
 ## 版本兼容性
@@ -495,7 +495,7 @@ eventmesh.native.connection.pool.maxIdle=100
 
 ### v1.9.0 (最新版本)
 
-- ✨ 新增原生协议支持功能
+- ✨ 新增原始协议支持功能
 - 🚀 实现协议透传优化
 - 🔧 支持自动协议识别
 - 📊 提供完整的监控指标
@@ -516,7 +516,7 @@ eventmesh.native.connection.pool.maxIdle=100
 
 ## 贡献指南
 
-欢迎为 EventMesh 原生协议支持功能贡献代码或提出建议：
+欢迎为 EventMesh 原始协议支持功能贡献代码或提出建议：
 
 1. Fork EventMesh 项目
 2. 创建功能分支

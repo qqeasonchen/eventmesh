@@ -62,6 +62,9 @@ import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.context.Context;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.eventmesh.api.auth.AuthService;
+import org.apache.eventmesh.api.producer.Producer;
+import org.apache.eventmesh.metrics.api.MetricsRegistry;
 
 @Slf4j
 public class MessageTransferProcessor implements TcpProcessor {
@@ -69,14 +72,23 @@ public class MessageTransferProcessor implements TcpProcessor {
     private static final Logger MESSAGE_LOGGER = LoggerFactory.getLogger(EventMeshConstants.MESSAGE);
     private EventMeshTCPServer eventMeshTCPServer;
     private final Acl acl;
+    private final Producer producer;
+    private final AuthService authService;
+    private final MetricsRegistry metricsRegistry;
 
     private Package pkg;
     private ChannelHandlerContext ctx;
     private Session session;
     private long startTime;
 
-    public MessageTransferProcessor(EventMeshTCPServer eventMeshTCPServer) {
+    public MessageTransferProcessor(EventMeshTCPServer eventMeshTCPServer,
+                                    Producer producer,
+                                    AuthService authService,
+                                    MetricsRegistry metricsRegistry) {
         this.eventMeshTCPServer = eventMeshTCPServer;
+        this.producer = producer;
+        this.authService = authService;
+        this.metricsRegistry = metricsRegistry;
         this.acl = eventMeshTCPServer.getAcl();
     }
 
@@ -114,13 +126,31 @@ public class MessageTransferProcessor implements TcpProcessor {
         CloudEvent event = null;
 
         try {
-            String protocolType = "eventmeshmessage";
+            // 根据协议类型自动选择适配器
+            String protocolType = "eventmeshmessage"; // 默认协议类型
             if (pkg.getHeader().getProperties() != null
                 && pkg.getHeader().getProperty(Constants.PROTOCOL_TYPE) != null) {
                 protocolType = (String) pkg.getHeader().getProperty(Constants.PROTOCOL_TYPE);
             }
-            ProtocolAdaptor<ProtocolTransportObject> protocolAdaptor =
-                ProtocolPluginFactory.getProtocolAdaptor(protocolType);
+            
+            // 获取目标协议类型（这里假设目标协议类型可以从配置或消息中获取）
+            String targetProtocolType = getTargetProtocolType(pkg);
+            
+            // 检查是否可以直接透传
+            if (ProtocolPluginFactory.canTransmitDirectly(protocolType, targetProtocolType)) {
+                // 直接透传，避免 CloudEvent 转换
+                ProtocolTransportObject transmittedMsg = ProtocolPluginFactory.transmitDirectly(
+                    protocolType, targetProtocolType, pkg);
+                handleDirectTransmission(transmittedMsg, ctx, startTime);
+                return;
+            }
+            
+            // 标准转换流程
+            ProtocolAdaptor<ProtocolTransportObject> protocolAdaptor = ProtocolPluginFactory.getProtocolAdaptor(protocolType);
+            if (protocolAdaptor == null) {
+                throw new Exception("Protocol adaptor not found for type: " + protocolType);
+            }
+            
             event = protocolAdaptor.toCloudEvent(pkg);
 
             if (event == null) {
@@ -133,10 +163,15 @@ public class MessageTransferProcessor implements TcpProcessor {
                 throw new Exception("event size exceeds the limit: " + eventMeshEventSize);
             }
 
-            // do acl check in sending msg
-            if (eventMeshTCPServer.getEventMeshTCPConfiguration().isEventMeshServerSecurityEnable()) {
-                String remoteAddr = RemotingHelper.parseChannelRemoteAddr(ctx.channel());
-                this.acl.doAclCheckInTcpSend(remoteAddr, session.getClient(), event.getSubject(), cmd.getValue());
+            // 只处理 CloudEvent，鉴权、存储、监控全部通过接口
+            if (!authService.authenticate(event)) {
+                // 返回鉴权失败响应
+                msg.setHeader(new Header(replyCmd, OPStatus.FAIL.getCode(), "ACL check failed", pkg.getHeader().getSeq()));
+                ctx.channel().eventLoop().execute(() -> {
+                    ctx.writeAndFlush(msg).addListener(
+                        (ChannelFutureListener) future -> Utils.logSucceedMessageFlow(msg, session.getClient(), startTime, taskExecuteTime));
+                });
+                return;
             }
 
             if (!eventMeshTCPServer.getRateLimiter()
@@ -286,5 +321,42 @@ public class MessageTransferProcessor implements TcpProcessor {
                 }
             }
         };
+    }
+
+    /**
+     * Get target protocol type from package or configuration.
+     */
+    private String getTargetProtocolType(Package pkg) {
+        // 这里可以从消息头、配置或其他地方获取目标协议类型
+        // 示例：从消息头获取目标协议类型
+        if (pkg.getHeader().getProperties() != null
+            && pkg.getHeader().getProperty("target_protocol_type") != null) {
+            return (String) pkg.getHeader().getProperty("target_protocol_type");
+        }
+        
+        // 默认使用源协议类型（即透传）
+        return pkg.getHeader().getProperty(Constants.PROTOCOL_TYPE) != null 
+            ? (String) pkg.getHeader().getProperty(Constants.PROTOCOL_TYPE) 
+            : "eventmeshmessage";
+    }
+
+    /**
+     * Handle direct transmission without CloudEvent conversion.
+     */
+    private void handleDirectTransmission(ProtocolTransportObject transmittedMsg, 
+                                        ChannelHandlerContext ctx, 
+                                        long startTime) throws Exception {
+        // 直接处理透传的消息，无需 CloudEvent 转换
+        // 这里可以根据具体协议类型进行相应的处理
+        
+        // 示例：直接发送透传的消息
+        if (transmittedMsg instanceof Package) {
+            Package pkg = (Package) transmittedMsg;
+            Utils.writeAndFlush(pkg, startTime, System.currentTimeMillis(), ctx, session);
+        }
+        
+        // 记录透传日志
+        log.info("Direct transmission completed for protocol: {}", 
+            pkg.getHeader().getProperty(Constants.PROTOCOL_TYPE));
     }
 }

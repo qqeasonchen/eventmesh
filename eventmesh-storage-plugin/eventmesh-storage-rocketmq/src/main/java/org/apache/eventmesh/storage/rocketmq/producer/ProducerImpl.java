@@ -22,6 +22,8 @@ import org.apache.eventmesh.api.SendCallback;
 import org.apache.eventmesh.api.SendResult;
 import org.apache.eventmesh.api.exception.OnExceptionContext;
 import org.apache.eventmesh.api.exception.StorageRuntimeException;
+import org.apache.eventmesh.api.storage.EventStorage;
+import org.apache.eventmesh.api.storage.EventDispatcher;
 import org.apache.eventmesh.common.Constants;
 import org.apache.eventmesh.storage.rocketmq.cloudevent.RocketMQMessageFactory;
 import org.apache.eventmesh.storage.rocketmq.utils.CloudEventUtils;
@@ -46,7 +48,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @SuppressWarnings("deprecation")
-public class ProducerImpl extends AbstractProducer {
+public class ProducerImpl extends AbstractProducer implements EventStorage, EventDispatcher {
 
     public static final int eventMeshServerAsyncAccumulationThreshold = 1000;
 
@@ -215,6 +217,15 @@ public class ProducerImpl extends AbstractProducer {
                 sendCallback.onException(context);
             }
         };
+    }
+
+    @Override
+    public void store(CloudEvent event) throws Exception {
+        this.send(event);
+    }
+    @Override
+    public void dispatch(CloudEvent event, SendCallback callback) throws Exception {
+        this.sendAsync(event, callback);
     }
 
 }

@@ -27,6 +27,9 @@ import org.apache.eventmesh.runtime.constants.EventMeshConstants;
 import org.apache.eventmesh.runtime.core.protocol.grpc.processor.BatchPublishCloudEventProcessor;
 import org.apache.eventmesh.runtime.core.protocol.grpc.processor.PublishCloudEventsProcessor;
 import org.apache.eventmesh.runtime.core.protocol.grpc.processor.RequestCloudEventProcessor;
+import org.apache.eventmesh.api.auth.AuthService;
+import org.apache.eventmesh.api.producer.Producer;
+import org.apache.eventmesh.metrics.api.MetricsRegistry;
 
 import java.util.concurrent.ThreadPoolExecutor;
 
@@ -41,10 +44,20 @@ public class PublisherService extends PublisherServiceGrpc.PublisherServiceImplB
 
     private final ThreadPoolExecutor threadPoolExecutor;
 
+    private final Producer producer;
+    private final AuthService authService;
+    private final MetricsRegistry metricsRegistry;
+
     public PublisherService(EventMeshGrpcServer eventMeshGrpcServer,
-        ThreadPoolExecutor threadPoolExecutor) {
+        ThreadPoolExecutor threadPoolExecutor,
+        Producer producer,
+        AuthService authService,
+        MetricsRegistry metricsRegistry) {
         this.eventMeshGrpcServer = eventMeshGrpcServer;
         this.threadPoolExecutor = threadPoolExecutor;
+        this.producer = producer;
+        this.authService = authService;
+        this.metricsRegistry = metricsRegistry;
     }
 
     /**
@@ -64,7 +77,7 @@ public class PublisherService extends PublisherServiceGrpc.PublisherServiceImplB
 
         EventEmitter<CloudEvent> emitter = new EventEmitter<>(responseObserver);
         threadPoolExecutor.submit(() -> {
-            PublishCloudEventsProcessor publishCloudEventsProcessor = new PublishCloudEventsProcessor(eventMeshGrpcServer);
+            PublishCloudEventsProcessor publishCloudEventsProcessor = new PublishCloudEventsProcessor(producer, authService, metricsRegistry);
             try {
                 publishCloudEventsProcessor.process(request, emitter);
             } catch (Exception e) {

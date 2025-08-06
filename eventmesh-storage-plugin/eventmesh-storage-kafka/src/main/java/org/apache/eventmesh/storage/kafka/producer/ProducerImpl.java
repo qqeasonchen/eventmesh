@@ -22,6 +22,8 @@ import org.apache.eventmesh.api.SendCallback;
 import org.apache.eventmesh.api.SendResult;
 import org.apache.eventmesh.api.exception.OnExceptionContext;
 import org.apache.eventmesh.api.exception.StorageRuntimeException;
+import org.apache.eventmesh.api.storage.EventStorage;
+import org.apache.eventmesh.api.storage.EventDispatcher;
 
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.producer.KafkaProducer;
@@ -42,7 +44,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @SuppressWarnings("deprecation")
-public class ProducerImpl {
+public class ProducerImpl implements EventStorage, EventDispatcher {
 
     private final KafkaProducer<String, CloudEvent> producer;
     private final Properties properties = new Properties();
@@ -124,5 +126,14 @@ public class ProducerImpl {
         } catch (Exception e) {
             log.error(String.format("Send message oneway Exception, %s", cloudEvent), e);
         }
+    }
+
+    @Override
+    public void store(CloudEvent event) throws Exception {
+        this.send(event);
+    }
+    @Override
+    public void dispatch(CloudEvent event, SendCallback callback) throws Exception {
+        this.sendAsync(event, callback);
     }
 }

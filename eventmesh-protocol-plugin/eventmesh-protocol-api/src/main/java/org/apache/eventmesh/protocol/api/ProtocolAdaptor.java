@@ -21,6 +21,7 @@ import org.apache.eventmesh.common.protocol.ProtocolTransportObject;
 import org.apache.eventmesh.protocol.api.exception.ProtocolHandleException;
 import org.apache.eventmesh.spi.EventMeshExtensionType;
 import org.apache.eventmesh.spi.EventMeshSPI;
+import org.apache.eventmesh.spi.PluginLifecycle;
 
 import java.util.List;
 
@@ -34,7 +35,7 @@ import io.cloudevents.CloudEvent;
  * @since 1.3.0
  */
 @EventMeshSPI(eventMeshExtensionType = EventMeshExtensionType.PROTOCOL)
-public interface ProtocolAdaptor<T extends ProtocolTransportObject> {
+public interface ProtocolAdaptor<T extends ProtocolTransportObject> extends PluginLifecycle {
 
     /**
      * transform protocol to {@link CloudEvent}.
@@ -67,4 +68,25 @@ public interface ProtocolAdaptor<T extends ProtocolTransportObject> {
      */
     String getProtocolType();
 
+    /**
+     * Check if this protocol can be directly transmitted without conversion.
+     * 
+     * @param targetProtocolType target protocol type
+     * @return true if can be transmitted directly, false otherwise
+     */
+    default boolean canTransmitDirectly(String targetProtocolType) {
+        return getProtocolType().equals(targetProtocolType);
+    }
+
+    /**
+     * Directly transmit the protocol object without conversion to CloudEvent.
+     * This method should be implemented for performance optimization when source and target protocols are the same.
+     * 
+     * @param protocol input protocol
+     * @return transmitted protocol object
+     */
+    default T transmitDirectly(T protocol) throws ProtocolHandleException {
+        // Default implementation returns the original object
+        return protocol;
+    }
 }

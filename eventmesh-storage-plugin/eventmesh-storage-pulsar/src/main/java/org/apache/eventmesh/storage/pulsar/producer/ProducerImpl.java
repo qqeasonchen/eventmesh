@@ -18,6 +18,8 @@
 package org.apache.eventmesh.storage.pulsar.producer;
 
 import org.apache.eventmesh.api.SendCallback;
+import org.apache.eventmesh.api.storage.EventStorage;
+import org.apache.eventmesh.api.storage.EventDispatcher;
 import org.apache.eventmesh.storage.pulsar.client.PulsarClientWrapper;
 import org.apache.eventmesh.storage.pulsar.config.ClientConfiguration;
 
@@ -29,7 +31,7 @@ import io.cloudevents.CloudEvent;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class ProducerImpl extends AbstractProducer {
+public class ProducerImpl extends AbstractProducer implements EventStorage, EventDispatcher {
 
     private final AtomicBoolean started = new AtomicBoolean(false);
 
@@ -79,5 +81,14 @@ public class ProducerImpl extends AbstractProducer {
 
     public void setConfig(ClientConfiguration config) {
         this.config = config;
+    }
+
+    @Override
+    public void store(CloudEvent event) throws Exception {
+        this.publish(event, null); // 可根据实际情况传递回调
+    }
+    @Override
+    public void dispatch(CloudEvent event, SendCallback callback) throws Exception {
+        this.publish(event, callback);
     }
 }

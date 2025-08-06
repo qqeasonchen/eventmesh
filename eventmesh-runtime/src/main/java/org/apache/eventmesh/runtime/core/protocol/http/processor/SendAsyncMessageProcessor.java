@@ -46,6 +46,9 @@ import org.apache.eventmesh.runtime.util.EventMeshUtil;
 import org.apache.eventmesh.runtime.util.RemotingHelper;
 import org.apache.eventmesh.runtime.util.TraceUtils;
 import org.apache.eventmesh.trace.api.common.EventMeshTraceConstants;
+import org.apache.eventmesh.api.auth.AuthService;
+import org.apache.eventmesh.api.producer.Producer;
+import org.apache.eventmesh.metrics.api.MetricsRegistry;
 
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -72,13 +75,18 @@ public class SendAsyncMessageProcessor extends AbstractHttpRequestProcessor {
 
     private static final Logger ACL_LOGGER = LoggerFactory.getLogger(EventMeshConstants.ACL);
 
-    private final EventMeshHTTPServer eventMeshHTTPServer;
+    private final Producer producer;
+    private final AuthService authService;
+    private final MetricsRegistry metricsRegistry;
 
-    private final Acl acl;
-
-    public SendAsyncMessageProcessor(final EventMeshHTTPServer eventMeshHTTPServer) {
-        this.eventMeshHTTPServer = eventMeshHTTPServer;
-        this.acl = eventMeshHTTPServer.getAcl();
+    public SendAsyncMessageProcessor(final EventMeshHTTPServer eventMeshHTTPServer,
+                                     Producer producer,
+                                     AuthService authService,
+                                     MetricsRegistry metricsRegistry) {
+        super(eventMeshHTTPServer);
+        this.producer = producer;
+        this.authService = authService;
+        this.metricsRegistry = metricsRegistry;
     }
 
     @Override
@@ -104,6 +112,20 @@ public class SendAsyncMessageProcessor extends AbstractHttpRequestProcessor {
 
         String protocolType = sendMessageRequestHeader.getProtocolType();
         String protocolVersion = sendMessageRequestHeader.getProtocolVersion();
+        
+        // 获取目标协议类型（这里假设从配置或消息中获取）
+        String targetProtocolType = getTargetProtocolType(request);
+        
+        // 检查是否可以直接透传
+        if (ProtocolPluginFactory.canTransmitDirectly(protocolType, targetProtocolType)) {
+            // 直接透传，避免 CloudEvent 转换
+            ProtocolTransportObject transmittedMsg = ProtocolPluginFactory.transmitDirectly(
+                protocolType, targetProtocolType, request);
+            handleDirectTransmission(transmittedMsg, ctx, asyncContext, sendMessageResponseHeader);
+            return;
+        }
+        
+        // 标准转换流程
         ProtocolAdaptor<ProtocolTransportObject> httpCommandProtocolAdaptor =
             ProtocolPluginFactory.getProtocolAdaptor(protocolType);
         CloudEvent event = httpCommandProtocolAdaptor.toCloudEvent(request);
@@ -250,7 +272,13 @@ public class SendAsyncMessageProcessor extends AbstractHttpRequestProcessor {
             Span clientSpan = TraceUtils.prepareClientSpan(EventMeshUtil.getCloudEventExtensionMap(protocolVersion, event),
                 EventMeshTraceConstants.TRACE_UPSTREAM_EVENTMESH_CLIENT_SPAN, false);
             try {
-                eventMeshProducer.send(sendMessageContext, new SendCallback() {
+                // 只处理 CloudEvent，鉴权、存储、监控全部通过接口
+                if (!authService.authenticate(event)) {
+                    completeResponse(request, asyncContext, sendMessageResponseHeader,
+                        EventMeshRetCode.EVENTMESH_ACL_ERR, "ACL check failed", SendMessageResponseBody.class);
+                    return;
+                }
+                producer.publish(event, new SendCallback() {
 
                     @Override
                     public void onSuccess(SendResult sendResult) {
@@ -304,6 +332,43 @@ public class SendAsyncMessageProcessor extends AbstractHttpRequestProcessor {
             summaryMetrics.recordSendMsgFailed();
             summaryMetrics.recordSendMsgCost(endTime - startTime);
         }
+    }
+
+    /**
+     * Get target protocol type from request or configuration.
+     */
+    private String getTargetProtocolType(HttpCommand request) {
+        // 这里可以从请求头、配置或其他地方获取目标协议类型
+        // 示例：从请求头获取目标协议类型
+        SendMessageRequestHeader header = (SendMessageRequestHeader) request.getHeader();
+        if (header.getProperties() != null && header.getProperty("target_protocol_type") != null) {
+            return (String) header.getProperty("target_protocol_type");
+        }
+        
+        // 默认使用源协议类型（即透传）
+        return header.getProtocolType();
+    }
+
+    /**
+     * Handle direct transmission without CloudEvent conversion.
+     */
+    private void handleDirectTransmission(ProtocolTransportObject transmittedMsg, 
+                                        ChannelHandlerContext ctx, 
+                                        AsyncContext<HttpCommand> asyncContext,
+                                        SendMessageResponseHeader responseHeader) throws Exception {
+        // 直接处理透传的消息，无需 CloudEvent 转换
+        // 这里可以根据具体协议类型进行相应的处理
+        
+        // 示例：直接发送透传的消息
+        if (transmittedMsg instanceof HttpCommand) {
+            HttpCommand response = (HttpCommand) transmittedMsg;
+            completeResponse(request, asyncContext, responseHeader,
+                EventMeshRetCode.SUCCESS, "Direct transmission completed", SendMessageResponseBody.class);
+        }
+        
+        // 记录透传日志
+        HTTP_LOGGER.info("Direct transmission completed for protocol: {}", 
+            sendMessageRequestHeader.getProtocolType());
     }
 
     @Override

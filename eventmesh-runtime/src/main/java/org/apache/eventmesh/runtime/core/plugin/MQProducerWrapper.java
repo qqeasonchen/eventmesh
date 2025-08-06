@@ -17,78 +17,25 @@
 
 package org.apache.eventmesh.runtime.core.plugin;
 
-import org.apache.eventmesh.api.RequestReplyCallback;
 import org.apache.eventmesh.api.SendCallback;
-import org.apache.eventmesh.api.factory.StoragePluginFactory;
-import org.apache.eventmesh.api.producer.Producer;
-
-import java.util.Properties;
-
+import org.apache.eventmesh.api.storage.EventStorage;
+import org.apache.eventmesh.api.storage.EventDispatcher;
 import io.cloudevents.CloudEvent;
 
-import lombok.extern.slf4j.Slf4j;
-
-@Slf4j
 public class MQProducerWrapper extends MQWrapper {
+    private final EventStorage eventStorage;
+    private final EventDispatcher eventDispatcher;
 
-    protected Producer meshMQProducer;
-
-    public MQProducerWrapper(String storagePluginType) {
-        this.meshMQProducer = StoragePluginFactory.getMeshMQProducer(storagePluginType);
-        if (meshMQProducer == null) {
-            log.error("can't load the meshMQProducer plugin, please check.");
-            throw new RuntimeException("doesn't load the meshMQProducer plugin, please check.");
-        }
+    public MQProducerWrapper(EventStorage eventStorage, EventDispatcher eventDispatcher) {
+        this.eventStorage = eventStorage;
+        this.eventDispatcher = eventDispatcher;
     }
 
-    public synchronized void init(Properties keyValue) throws Exception {
-        if (inited.get()) {
-            return;
-        }
-
-        meshMQProducer.init(keyValue);
-        inited.compareAndSet(false, true);
+    public void storeEvent(CloudEvent event) throws Exception {
+        eventStorage.store(event);
     }
 
-    public synchronized void start() throws Exception {
-        if (started.get()) {
-            return;
-        }
-
-        meshMQProducer.start();
-
-        started.compareAndSet(false, true);
-    }
-
-    public synchronized void shutdown() throws Exception {
-        if (!inited.get()) {
-            return;
-        }
-
-        if (!started.get()) {
-            return;
-        }
-
-        meshMQProducer.shutdown();
-
-        inited.compareAndSet(true, false);
-        started.compareAndSet(true, false);
-    }
-
-    public void send(CloudEvent cloudEvent, SendCallback sendCallback) throws Exception {
-        meshMQProducer.publish(cloudEvent, sendCallback);
-    }
-
-    public void request(CloudEvent cloudEvent, RequestReplyCallback rrCallback, long timeout)
-        throws Exception {
-        meshMQProducer.request(cloudEvent, rrCallback, timeout);
-    }
-
-    public boolean reply(final CloudEvent cloudEvent, final SendCallback sendCallback) throws Exception {
-        return meshMQProducer.reply(cloudEvent, sendCallback);
-    }
-
-    public Producer getMeshMQProducer() {
-        return meshMQProducer;
+    public void dispatchEvent(CloudEvent event, SendCallback callback) throws Exception {
+        eventDispatcher.dispatch(event, callback);
     }
 }

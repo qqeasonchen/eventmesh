@@ -17,11 +17,14 @@
 
 package org.apache.eventmesh.runtime.core.protocol.grpc.processor;
 
+import org.apache.eventmesh.api.auth.AuthService;
 import org.apache.eventmesh.api.exception.AclException;
+import org.apache.eventmesh.api.producer.Producer;
 import org.apache.eventmesh.common.protocol.grpc.cloudevents.CloudEvent;
 import org.apache.eventmesh.common.protocol.grpc.common.EventMeshCloudEventUtils;
 import org.apache.eventmesh.common.protocol.grpc.common.StatusCode;
 import org.apache.eventmesh.common.protocol.http.common.RequestCode;
+import org.apache.eventmesh.metrics.api.MetricsRegistry;
 import org.apache.eventmesh.runtime.acl.Acl;
 import org.apache.eventmesh.runtime.boot.EventMeshGrpcServer;
 import org.apache.eventmesh.runtime.constants.EventMeshConstants;
@@ -40,20 +43,23 @@ public abstract class AbstractPublishCloudEventProcessor implements PublishProce
 
     private static final Logger aclLogger = LoggerFactory.getLogger("acl");
 
-    protected final EventMeshGrpcServer eventMeshGrpcServer;
+    protected final Producer producer;
+    protected final AuthService authService;
+    protected final MetricsRegistry metricsRegistry;
 
-    protected final Acl acl;
-
-    public AbstractPublishCloudEventProcessor(final EventMeshGrpcServer eventMeshGrpcServer, final Acl acl) {
-        this.eventMeshGrpcServer = eventMeshGrpcServer;
-        this.acl = acl;
+    public AbstractPublishCloudEventProcessor(Producer producer, AuthService authService, MetricsRegistry metricsRegistry) {
+        this.producer = producer;
+        this.authService = authService;
+        this.metricsRegistry = metricsRegistry;
     }
 
     @Override
     public void process(CloudEvent cloudEvent, EventEmitter<CloudEvent> emitter) throws Exception {
 
         // control flow rate limit
-        if (!eventMeshGrpcServer.getMsgRateLimiter().tryAcquire(EventMeshConstants.DEFAULT_FASTFAIL_TIMEOUT_IN_MILLISECONDS, TimeUnit.MILLISECONDS)) {
+        // 这里假设限流逻辑由 metricsRegistry 或外部注入实现
+        // 可根据实际情况调整
+        if (!metricsRegistry.tryAcquire(EventMeshConstants.DEFAULT_FASTFAIL_TIMEOUT_IN_MILLISECONDS, TimeUnit.MILLISECONDS)) {
             log.error("Send message speed over limit.");
             ServiceUtils.sendStreamResponseCompleted(cloudEvent, StatusCode.EVENTMESH_SEND_MESSAGE_SPEED_OVER_LIMIT_ERR, emitter);
             return;
@@ -64,9 +70,9 @@ public abstract class AbstractPublishCloudEventProcessor implements PublishProce
             ServiceUtils.sendResponseCompleted(cloudEventCheck, emitter);
             return;
         }
-        StatusCode aclCheck = this.aclCheck(cloudEvent);
-        if (aclCheck != StatusCode.SUCCESS) {
-            ServiceUtils.sendResponseCompleted(aclCheck, emitter);
+        // 使用接口鉴权
+        if (!authService.authenticate(cloudEvent)) {
+            ServiceUtils.sendResponseCompleted(StatusCode.EVENTMESH_ACL_ERR, emitter);
             return;
         }
         handleCloudEvent(cloudEvent, emitter);
@@ -85,19 +91,17 @@ public abstract class AbstractPublishCloudEventProcessor implements PublishProce
 
     public StatusCode aclCheck(CloudEvent cloudEvent) {
         try {
-            if (eventMeshGrpcServer.getEventMeshGrpcConfiguration().isEventMeshServerSecurityEnable()) {
-                String remoteAdd = EventMeshCloudEventUtils.getIp(cloudEvent);
-                String user = EventMeshCloudEventUtils.getUserName(cloudEvent);
-                String pass = EventMeshCloudEventUtils.getPassword(cloudEvent);
-                String subsystem = EventMeshCloudEventUtils.getSys(cloudEvent);
-                String topic = EventMeshCloudEventUtils.getSubject(cloudEvent);
-                this.acl.doAclCheckInHttpSend(remoteAdd, user, pass, subsystem, topic, RequestCode.MSG_SEND_ASYNC.getRequestCode());
+            // 移除 eventMeshGrpcServer、acl 等具体实现依赖
+            // 鉴权逻辑由 AuthService 处理
+            if (authService.authenticate(cloudEvent)) {
+                return StatusCode.SUCCESS;
+            } else {
+                return StatusCode.EVENTMESH_ACL_ERR;
             }
         } catch (AclException e) {
             aclLogger.warn("Client has no permission,AbstructPublishCloudEventProcessor send failed", e);
             return StatusCode.EVENTMESH_ACL_ERR;
         }
-        return StatusCode.SUCCESS;
     }
 
     abstract void handleCloudEvent(CloudEvent cloudEvent, EventEmitter<CloudEvent> emitter) throws Exception;

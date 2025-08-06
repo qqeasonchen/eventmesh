@@ -37,6 +37,10 @@ import org.apache.eventmesh.runtime.core.protocol.grpc.service.HeartbeatService;
 import org.apache.eventmesh.runtime.core.protocol.grpc.service.PublisherService;
 import org.apache.eventmesh.runtime.meta.MetaStorage;
 import org.apache.eventmesh.runtime.metrics.grpc.EventMeshGrpcMetricsManager;
+import org.apache.eventmesh.api.auth.AuthService;
+import org.apache.eventmesh.api.factory.AuthPluginFactory;
+import org.apache.eventmesh.api.producer.Producer;
+import org.apache.eventmesh.api.factory.StoragePluginFactory;
 
 import org.apache.commons.lang3.RandomUtils;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -94,6 +98,10 @@ public class EventMeshGrpcServer extends AbstractRemotingServer {
 
     private EventMeshGrpcMetricsManager eventMeshGrpcMetricsManager;
 
+    private Producer producer;
+    private AuthService authService;
+    private MetricsRegistry metricsRegistry;
+
     public EventMeshGrpcServer(final EventMeshServer eventMeshServer, final EventMeshGrpcConfiguration eventMeshGrpcConfiguration) {
         this.eventMeshServer = eventMeshServer;
         this.eventMeshGrpcConfiguration = eventMeshGrpcConfiguration;
@@ -110,6 +118,11 @@ public class EventMeshGrpcServer extends AbstractRemotingServer {
 
         msgRateLimiter = RateLimiter.create(eventMeshGrpcConfiguration.getEventMeshMsgReqNumPerSecond());
 
+        // 初始化插件
+        this.producer = StoragePluginFactory.getMeshMQProducer(eventMeshGrpcConfiguration.getEventMeshStoragePluginType());
+        this.authService = AuthPluginFactory.getAuthService(eventMeshGrpcConfiguration.getEventMeshSecurityPluginType());
+        this.metricsRegistry = MetricsPluginFactory.getMetricsRegistry(eventMeshGrpcConfiguration.getEventMeshMetricsPluginType());
+
         initProducerManager();
         consumerManager = new ConsumerManager(this);
         consumerManager.init();
@@ -119,9 +132,9 @@ public class EventMeshGrpcServer extends AbstractRemotingServer {
         int serverPort = eventMeshGrpcConfiguration.getGrpcServerPort();
 
         server = ServerBuilder.forPort(serverPort)
-            .addService(new ConsumerService(this, sendMsgExecutor, replyMsgExecutor))
+            .addService(new ConsumerService(this, sendMsgExecutor))
             .addService(new HeartbeatService(this, sendMsgExecutor))
-            .addService(new PublisherService(this, sendMsgExecutor))
+            .addService(new PublisherService(this, sendMsgExecutor, producer, authService, metricsRegistry))
             .build();
 
         initMetricsMonitor();

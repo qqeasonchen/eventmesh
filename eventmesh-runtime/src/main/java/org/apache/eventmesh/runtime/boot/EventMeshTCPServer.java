@@ -45,6 +45,10 @@ import org.apache.eventmesh.runtime.core.protocol.tcp.client.rebalance.EventMesh
 import org.apache.eventmesh.runtime.core.protocol.tcp.client.session.retry.TcpRetryer;
 import org.apache.eventmesh.runtime.meta.MetaStorage;
 import org.apache.eventmesh.runtime.metrics.tcp.EventMeshTcpMetricsManager;
+import org.apache.eventmesh.api.auth.AuthService;
+import org.apache.eventmesh.api.factory.AuthPluginFactory;
+import org.apache.eventmesh.api.producer.Producer;
+import org.apache.eventmesh.api.factory.StoragePluginFactory;
 
 import java.util.List;
 import java.util.Optional;
@@ -75,6 +79,9 @@ public class EventMeshTCPServer extends AbstractTCPServer {
 
     private RateLimiter rateLimiter;
     private EventMeshRebalanceService eventMeshRebalanceService;
+    private Producer producer;
+    private AuthService authService;
+    private MetricsRegistry metricsRegistry;
 
     public EventMeshTCPServer(final EventMeshServer eventMeshServer, final EventMeshTCPConfiguration eventMeshTCPConfiguration) {
         super(eventMeshTCPConfiguration);
@@ -108,6 +115,11 @@ public class EventMeshTCPServer extends AbstractTCPServer {
             eventMeshRebalanceService = new EventMeshRebalanceService(this, new EventMeshRebalanceImpl(this));
             eventMeshRebalanceService.init();
         }
+
+        // 初始化插件
+        this.producer = StoragePluginFactory.getMeshMQProducer(eventMeshTCPConfiguration.getEventMeshStoragePluginType());
+        this.authService = AuthPluginFactory.getAuthService(eventMeshTCPConfiguration.getEventMeshSecurityPluginType());
+        this.metricsRegistry = MetricsPluginFactory.getMetricsRegistry(eventMeshTCPConfiguration.getEventMeshMetricsPluginType());
 
         registerTCPRequestProcessor();
 
@@ -215,7 +227,7 @@ public class EventMeshTCPServer extends AbstractTCPServer {
         registerProcessor(Command.LISTEN_REQUEST, listenProcessor, taskHandleExecutorService);
 
         ThreadPoolExecutor sendExecutorService = super.getTcpThreadPoolGroup().getSendExecutorService();
-        MessageTransferProcessor messageTransferProcessor = new MessageTransferProcessor(this);
+        MessageTransferProcessor messageTransferProcessor = new MessageTransferProcessor(this, producer, authService, metricsRegistry);
         registerProcessor(Command.REQUEST_TO_SERVER, messageTransferProcessor, sendExecutorService);
         registerProcessor(Command.ASYNC_MESSAGE_TO_SERVER, messageTransferProcessor, sendExecutorService);
         registerProcessor(Command.BROADCAST_MESSAGE_TO_SERVER, messageTransferProcessor, sendExecutorService);

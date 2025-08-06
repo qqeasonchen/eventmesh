@@ -23,6 +23,9 @@ import org.apache.eventmesh.protocol.api.exception.ProtocolHandleException;
 import org.apache.eventmesh.protocol.kafka.message.KafkaMessage;
 import org.apache.eventmesh.spi.EventMeshExtensionType;
 import org.apache.eventmesh.spi.EventMeshSPI;
+import org.apache.eventmesh.spi.PluginInfo;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 import java.util.List;
@@ -37,6 +40,8 @@ import io.cloudevents.jackson.JsonFormat;
  */
 @EventMeshSPI(eventMeshExtensionType = EventMeshExtensionType.PROTOCOL)
 public class KafkaProtocolAdapter implements ProtocolAdaptor<KafkaMessage> {
+
+    private static final Logger log = LoggerFactory.getLogger(KafkaProtocolAdapter.class);
 
     @Override
     public CloudEvent toCloudEvent(KafkaMessage kafkaMessage) throws ProtocolHandleException {
@@ -115,5 +120,38 @@ public class KafkaProtocolAdapter implements ProtocolAdaptor<KafkaMessage> {
         // For Kafka to Kafka, directly return the original message
         // This avoids unnecessary CloudEvent conversion for better performance
         return protocol;
+    }
+
+    @Override
+    public void onLoad(PluginInfo pluginInfo) throws Exception {
+        log.info("Kafka protocol adapter loaded: {}", pluginInfo.getProtocolType());
+        // Initialize Kafka-specific resources if needed
+    }
+
+    @Override
+    public void onUnload(PluginInfo pluginInfo) throws Exception {
+        log.info("Kafka protocol adapter unloaded: {}", pluginInfo.getProtocolType());
+        // Clean up Kafka-specific resources if needed
+    }
+
+    @Override
+    public void onReload(PluginInfo pluginInfo) throws Exception {
+        log.info("Kafka protocol adapter reloaded: {}", pluginInfo.getProtocolType());
+        // Handle reload logic if needed
+    }
+
+    @Override
+    public String getVersion() {
+        return "1.0.0";
+    }
+
+    @Override
+    public String getDescription() {
+        return "Kafka protocol adapter for EventMesh";
+    }
+
+    @Override
+    public boolean supportsHotReload() {
+        return true; // Kafka adapter supports hot reloading
     }
 } 

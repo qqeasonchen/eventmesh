@@ -19,6 +19,8 @@ package org.apache.eventmesh.runtime.core.protocol.producer;
 
 import org.apache.eventmesh.api.RequestReplyCallback;
 import org.apache.eventmesh.api.SendCallback;
+import org.apache.eventmesh.api.storage.EventStorage;
+import org.apache.eventmesh.api.storage.EventDispatcher;
 import org.apache.eventmesh.common.config.CommonConfiguration;
 import org.apache.eventmesh.runtime.common.ServiceState;
 import org.apache.eventmesh.runtime.constants.EventMeshConstants;
@@ -34,14 +36,15 @@ import lombok.extern.slf4j.Slf4j;
 public class EventMeshProducer {
 
     private ProducerGroupConf producerGroupConfig;
-
+    private EventStorage eventStorage;
+    private EventDispatcher eventDispatcher;
     private MQProducerWrapper mqProducerWrapper;
 
     private ServiceState serviceState;
 
     public void send(SendMessageContext sendMsgContext, SendCallback sendCallback)
         throws Exception {
-        mqProducerWrapper.send(sendMsgContext.getEvent(), sendCallback);
+        mqProducerWrapper.dispatchEvent(sendMsgContext.getEvent(), sendCallback);
     }
 
     public void request(SendMessageContext sendMsgContext, RequestReplyCallback rrCallback, long timeout)
@@ -53,22 +56,23 @@ public class EventMeshProducer {
         mqProducerWrapper.reply(sendMessageContext.getEvent(), sendCallback);
     }
 
-    public synchronized void init(CommonConfiguration configuration,
-        ProducerGroupConf producerGroupConfig) throws Exception {
+    public void store(SendMessageContext sendMsgContext) throws Exception {
+        mqProducerWrapper.storeEvent(sendMsgContext.getEvent());
+    }
+
+    public synchronized void init(CommonConfiguration configuration, ProducerGroupConf producerGroupConfig, EventStorage eventStorage, EventDispatcher eventDispatcher) throws Exception {
         if (ServiceState.INITED == serviceState) {
             return;
         }
         this.producerGroupConfig = producerGroupConfig;
-
+        this.eventStorage = eventStorage;
+        this.eventDispatcher = eventDispatcher;
         Properties keyValue = new Properties();
         keyValue.put(EventMeshConstants.PRODUCER_GROUP, producerGroupConfig.getGroupName());
         keyValue.put(EventMeshConstants.INSTANCE_NAME, EventMeshUtil.buildMeshClientID(
             producerGroupConfig.getGroupName(), configuration.getEventMeshCluster()));
-
         keyValue.put(EventMeshConstants.EVENT_MESH_IDC, configuration.getEventMeshIDC());
-        mqProducerWrapper = new MQProducerWrapper(
-            configuration.getEventMeshStoragePluginType());
-        mqProducerWrapper.init(keyValue);
+        mqProducerWrapper = new MQProducerWrapper(eventStorage, eventDispatcher);
         serviceState = ServiceState.INITED;
         log.info("EventMeshProducer [{}] inited...........", producerGroupConfig.getGroupName());
     }

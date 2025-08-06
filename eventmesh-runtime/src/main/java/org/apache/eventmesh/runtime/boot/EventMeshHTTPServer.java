@@ -54,6 +54,10 @@ import org.apache.eventmesh.runtime.core.protocol.http.retry.HttpRetryer;
 import org.apache.eventmesh.runtime.core.protocol.producer.ProducerManager;
 import org.apache.eventmesh.runtime.meta.MetaStorage;
 import org.apache.eventmesh.runtime.metrics.http.EventMeshHttpMetricsManager;
+import org.apache.eventmesh.api.auth.AuthService;
+import org.apache.eventmesh.api.factory.AuthPluginFactory;
+import org.apache.eventmesh.api.producer.Producer;
+import org.apache.eventmesh.api.factory.StoragePluginFactory;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -92,6 +96,9 @@ public class EventMeshHTTPServer extends AbstractHTTPServer {
     private HttpRetryer httpRetryer;
     private transient RateLimiter msgRateLimiter;
     private transient RateLimiter batchRateLimiter;
+    private Producer producer;
+    private AuthService authService;
+    private MetricsRegistry metricsRegistry;
 
     public EventMeshHTTPServer(final EventMeshServer eventMeshServer, final EventMeshHTTPConfiguration eventMeshHttpConfiguration) {
         super(eventMeshHttpConfiguration.getHttpServerPort(),
@@ -140,6 +147,11 @@ public class EventMeshHTTPServer extends AbstractHTTPServer {
             super.setUseTrace(eventMeshHttpConfiguration.isEventMeshServerTraceEnable());
         }
         super.getHandlerService().setHttpTrace(new HTTPTrace(eventMeshHttpConfiguration.isEventMeshServerTraceEnable()));
+
+        // 初始化插件
+        this.producer = StoragePluginFactory.getMeshMQProducer(eventMeshHttpConfiguration.getEventMeshStoragePluginType());
+        this.authService = AuthPluginFactory.getAuthService(eventMeshHttpConfiguration.getEventMeshSecurityPluginType());
+        this.metricsRegistry = MetricsPluginFactory.getMetricsRegistry(eventMeshHttpConfiguration.getEventMeshMetricsPluginType());
 
         registerHTTPRequestProcessor();
 
@@ -239,7 +251,7 @@ public class EventMeshHTTPServer extends AbstractHTTPServer {
         final SendSyncMessageProcessor sendSyncMessageProcessor = new SendSyncMessageProcessor(this);
         registerProcessor(RequestCode.MSG_SEND_SYNC.getRequestCode(), sendSyncMessageProcessor);
 
-        final SendAsyncMessageProcessor sendAsyncMessageProcessor = new SendAsyncMessageProcessor(this);
+        final SendAsyncMessageProcessor sendAsyncMessageProcessor = new SendAsyncMessageProcessor(this, producer, authService, metricsRegistry);
         registerProcessor(RequestCode.MSG_SEND_ASYNC.getRequestCode(), sendAsyncMessageProcessor);
 
         final SendAsyncEventProcessor sendAsyncEventProcessor = new SendAsyncEventProcessor(this);

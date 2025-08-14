@@ -26,13 +26,9 @@ dependencies {
 
     implementation "org.apache.httpcomponents:httpclient"
     implementation 'io.netty:netty-all'
-
     implementation "com.alibaba.fastjson2:fastjson2"
-
     implementation 'com.github.seancfoley:ipaddress'
-
     implementation "commons-io:commons-io"
-
     implementation "commons-validator:commons-validator"
 
     implementation project(":eventmesh-common")
@@ -50,34 +46,38 @@ dependencies {
     implementation project(":eventmesh-meta:eventmesh-meta-api")
     implementation project(":eventmesh-meta:eventmesh-meta-nacos")
     implementation project(":eventmesh-protocol-plugin:eventmesh-protocol-api")
-
+    implementation project(":eventmesh-protocol-plugin:eventmesh-protocol-kafka")
+    implementation project(":eventmesh-protocol-plugin:eventmesh-protocol-pulsar")
+    implementation project(":eventmesh-protocol-plugin:eventmesh-protocol-rocketmq")
     implementation "io.grpc:grpc-core"
     implementation "io.grpc:grpc-protobuf"
     implementation "io.grpc:grpc-stub"
     implementation "io.grpc:grpc-netty"
     implementation "io.grpc:grpc-netty-shaded"
-
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
-
-    // for debug only, can be removed
     implementation project(":eventmesh-protocol-plugin:eventmesh-protocol-cloudevents")
     implementation project(":eventmesh-protocol-plugin:eventmesh-protocol-meshmessage")
     implementation project(":eventmesh-protocol-plugin:eventmesh-protocol-openmessage")
     implementation project(":eventmesh-protocol-plugin:eventmesh-protocol-http")
-
     implementation project(":eventmesh-metrics-plugin:eventmesh-metrics-api")
     implementation project(":eventmesh-metrics-plugin:eventmesh-metrics-prometheus")
-
     implementation project(":eventmesh-trace-plugin:eventmesh-trace-api")
     implementation project(":eventmesh-trace-plugin:eventmesh-trace-zipkin")
-
     implementation project(":eventmesh-retry:eventmesh-retry-api")
-
     testImplementation "org.mockito:mockito-inline"
     testImplementation "org.mockito:mockito-junit-jupiter"
     testImplementation "commons-io:commons-io"
-
+    // TestContainers for Kafka E2E testing
+    testImplementation "org.testcontainers:testcontainers:1.19.3"
+    testImplementation "org.testcontainers:kafka:1.19.3"
+    testImplementation "org.testcontainers:junit-jupiter:1.19.3"
+    // Kafka client for testing
+    testImplementation "org.apache.kafka:kafka-clients:3.6.1"
+    // JUnit 5 for testing
+    testImplementation "org.junit.jupiter:junit-jupiter-api:5.10.1"
+    testImplementation "org.junit.jupiter:junit-jupiter-engine:5.10.1"
+    testImplementation "org.junit.jupiter:junit-jupiter-params:5.10.1"
     testCompileOnly 'org.projectlombok:lombok'
     testAnnotationProcessor 'org.projectlombok:lombok'
 }

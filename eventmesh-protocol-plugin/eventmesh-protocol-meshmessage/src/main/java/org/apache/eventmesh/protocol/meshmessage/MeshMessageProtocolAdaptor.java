@@ -94,13 +94,8 @@ public class MeshMessageProtocolAdaptor implements ProtocolAdaptor<ProtocolTrans
     }
 
     @Override
-    public List<CloudEvent> toBatchCloudEvent(ProtocolTransportObject protocol) throws ProtocolHandleException {
-        if (protocol instanceof BatchEventMeshCloudEventWrapper) {
-            CloudEventBatch cloudEventBatch = ((BatchEventMeshCloudEventWrapper) protocol).getMessage();
-            return GrpcEventMeshCloudEventProtocolResolver.buildBatchEvents(cloudEventBatch);
-        } else {
-            throw new ProtocolHandleException(String.format("protocol class: %s", protocol.getClass()));
-        }
+    public java.util.List<io.cloudevents.CloudEvent> toBatchCloudEvent(java.util.List<ProtocolTransportObject> protocolList) throws ProtocolHandleException {
+        return java.util.Collections.emptyList();
     }
 
     @Override

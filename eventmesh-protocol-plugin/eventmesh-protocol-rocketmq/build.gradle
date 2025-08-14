@@ -21,7 +21,7 @@ dependencies {
     implementation "io.cloudevents:cloudevents-json-jackson"
     
     // RocketMQ dependencies
-    implementation "org.apache.rocketmq:rocketmq-client"
+    implementation 'org.apache.rocketmq:rocketmq-client:5.1.3'
     
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'

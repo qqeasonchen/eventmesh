@@ -132,7 +132,7 @@ public abstract class AbstractHTTPPushRequest extends RetryContext {
 
     @Override
     protected ProducerManager getProducerManager() {
-        return eventMeshHTTPServer.getProducerManager();
+        return eventMeshHTTPServer.getEventMeshServer().getProducerManager();
     }
 
 }

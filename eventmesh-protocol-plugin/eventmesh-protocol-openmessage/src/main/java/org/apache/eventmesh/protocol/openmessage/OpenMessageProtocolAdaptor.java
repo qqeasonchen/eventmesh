@@ -39,8 +39,8 @@ public class OpenMessageProtocolAdaptor<T extends ProtocolTransportObject> imple
     }
 
     @Override
-    public List<CloudEvent> toBatchCloudEvent(ProtocolTransportObject protocol) throws ProtocolHandleException {
-        return null;
+    public java.util.List<io.cloudevents.CloudEvent> toBatchCloudEvent(java.util.List<ProtocolTransportObject> protocolList) throws ProtocolHandleException {
+        return java.util.Collections.emptyList();
     }
 
     @Override

@@ -24,6 +24,7 @@ import org.apache.eventmesh.common.protocol.ProtocolTransportObject;
 import org.apache.eventmesh.common.protocol.grpc.cloudevents.CloudEvent;
 import org.apache.eventmesh.common.protocol.grpc.cloudevents.CloudEventBatch;
 import org.apache.eventmesh.common.protocol.grpc.common.BatchEventMeshCloudEventWrapper;
+import org.apache.eventmesh.common.protocol.grpc.common.EventMeshCloudEventWrapper;
 import org.apache.eventmesh.common.protocol.grpc.common.EventMeshCloudEventUtils;
 import org.apache.eventmesh.common.protocol.grpc.common.ProtocolKey;
 import org.apache.eventmesh.common.protocol.grpc.common.StatusCode;
@@ -55,13 +56,16 @@ public class BatchPublishCloudEventProcessor extends AbstractPublishBatchCloudEv
 
         String protocolType = EventMeshCloudEventUtils.getProtocolType(cloudEvent);
         ProtocolAdaptor<ProtocolTransportObject> grpcCommandProtocolAdaptor = ProtocolPluginFactory.getProtocolAdaptor(protocolType);
-        List<io.cloudevents.CloudEvent> cloudEvents = grpcCommandProtocolAdaptor.toBatchCloudEvent(
-            new BatchEventMeshCloudEventWrapper(cloudEventBatch));
+        List<ProtocolTransportObject> protocolList = new java.util.ArrayList<>();
+        for (int i = 0; i < cloudEventBatch.getEventsCount(); i++) {
+            protocolList.add(new EventMeshCloudEventWrapper(cloudEventBatch.getEvents(i)));
+        }
+        List<io.cloudevents.CloudEvent> cloudEvents = grpcCommandProtocolAdaptor.toBatchCloudEvent(protocolList);
 
         for (io.cloudevents.CloudEvent event : cloudEvents) {
             String seqNum = event.getId();
             String uniqueId = (event.getExtension(ProtocolKey.UNIQUE_ID) == null) ? "" : event.getExtension(ProtocolKey.UNIQUE_ID).toString();
-            ProducerManager producerManager = eventMeshGrpcServer.getProducerManager();
+            ProducerManager producerManager = eventMeshGrpcServer.getEventMeshServer().getProducerManager();
             EventMeshProducer eventMeshProducer = producerManager.getEventMeshProducer(producerGroup);
 
             SendMessageContext sendMessageContext = new SendMessageContext(seqNum, event, eventMeshProducer, eventMeshGrpcServer);

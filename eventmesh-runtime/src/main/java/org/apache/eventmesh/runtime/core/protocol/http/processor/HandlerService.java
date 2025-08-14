@@ -111,7 +111,8 @@ public class HandlerService {
             processorWrapper.async = (AsyncHttpProcessor) httpProcessor;
         }
         processorWrapper.httpProcessor = httpProcessor;
-        processorWrapper.traceEnabled = httpProcessor.getClass().getAnnotation(EventMeshTrace.class).isEnable();
+        EventMeshTrace traceAnno = httpProcessor.getClass().getAnnotation(EventMeshTrace.class);
+        processorWrapper.traceEnabled = traceAnno != null && traceAnno.isEnable();
         httpProcessorMap.put(path, processorWrapper);
         log.info("path is {}  processor name is {}", path, httpProcessor.getClass().getSimpleName());
     }

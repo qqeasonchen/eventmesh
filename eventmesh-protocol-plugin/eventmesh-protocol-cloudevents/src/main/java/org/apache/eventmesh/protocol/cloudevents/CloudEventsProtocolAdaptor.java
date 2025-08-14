@@ -101,13 +101,20 @@ public class CloudEventsProtocolAdaptor<T extends ProtocolTransportObject>
     }
 
     @Override
-    public List<CloudEvent> toBatchCloudEvent(ProtocolTransportObject protocol) throws ProtocolHandleException {
-        if (protocol instanceof BatchEventMeshCloudEventWrapper) {
-            CloudEventBatch cloudEventBatch = ((BatchEventMeshCloudEventWrapper) protocol).getMessage();
-            return GrpcEventMeshCloudEventProtocolResolver.buildBatchEvents(cloudEventBatch);
-        } else {
-            throw new ProtocolHandleException(String.format("protocol class: %s", protocol.getClass()));
+    public java.util.List<io.cloudevents.CloudEvent> toBatchCloudEvent(java.util.List<ProtocolTransportObject> protocolList) throws ProtocolHandleException {
+        java.util.List<io.cloudevents.CloudEvent> result = new java.util.ArrayList<>();
+        if (protocolList != null) {
+            for (ProtocolTransportObject protocol : protocolList) {
+                if (protocol instanceof BatchEventMeshCloudEventWrapper) {
+                    result.addAll(GrpcEventMeshCloudEventProtocolResolver.buildBatchEvents(((BatchEventMeshCloudEventWrapper) protocol).getMessage()));
+                } else if (protocol instanceof EventMeshCloudEventWrapper) {
+                    result.add(GrpcEventMeshCloudEventProtocolResolver.buildEvent(((EventMeshCloudEventWrapper) protocol).getMessage()));
+                } else {
+                    throw new ProtocolHandleException(String.format("protocol class: %s", protocol.getClass()));
+                }
+            }
         }
+        return result;
     }
 
     @Override

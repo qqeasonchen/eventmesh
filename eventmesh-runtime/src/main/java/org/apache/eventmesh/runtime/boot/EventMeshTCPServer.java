@@ -46,9 +46,9 @@ import org.apache.eventmesh.runtime.core.protocol.tcp.client.session.retry.TcpRe
 import org.apache.eventmesh.runtime.meta.MetaStorage;
 import org.apache.eventmesh.runtime.metrics.tcp.EventMeshTcpMetricsManager;
 import org.apache.eventmesh.api.auth.AuthService;
-import org.apache.eventmesh.api.factory.AuthPluginFactory;
-import org.apache.eventmesh.api.producer.Producer;
 import org.apache.eventmesh.api.factory.StoragePluginFactory;
+import org.apache.eventmesh.spi.EventMeshExtensionFactory;
+import org.apache.eventmesh.api.producer.Producer;
 
 import java.util.List;
 import java.util.Optional;
@@ -60,6 +60,8 @@ import org.assertj.core.util.Lists;
 import com.google.common.util.concurrent.RateLimiter;
 
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Add multiple managers to the underlying server
@@ -79,7 +81,6 @@ public class EventMeshTCPServer extends AbstractTCPServer {
 
     private RateLimiter rateLimiter;
     private EventMeshRebalanceService eventMeshRebalanceService;
-    private Producer producer;
     private AuthService authService;
     private MetricsRegistry metricsRegistry;
 
@@ -117,9 +118,17 @@ public class EventMeshTCPServer extends AbstractTCPServer {
         }
 
         // 初始化插件
-        this.producer = StoragePluginFactory.getMeshMQProducer(eventMeshTCPConfiguration.getEventMeshStoragePluginType());
-        this.authService = AuthPluginFactory.getAuthService(eventMeshTCPConfiguration.getEventMeshSecurityPluginType());
-        this.metricsRegistry = MetricsPluginFactory.getMetricsRegistry(eventMeshTCPConfiguration.getEventMeshMetricsPluginType());
+        if (eventMeshTCPConfiguration.isEventMeshServerSecurityEnable()) {
+            this.authService = EventMeshExtensionFactory.getExtension(
+                AuthService.class, eventMeshTCPConfiguration.getEventMeshSecurityPluginType());
+        } else {
+            this.authService = null;
+            log.info("Security is disabled, skipping AuthService plugin loading");
+        }
+        List<String> pluginTypes = eventMeshTCPConfiguration.getEventMeshMetricsPluginType();
+        if (pluginTypes != null && !pluginTypes.isEmpty()) {
+            this.metricsRegistry = MetricsPluginFactory.getMetricsRegistry(pluginTypes.get(0));
+        }
 
         registerTCPRequestProcessor();
 
@@ -227,7 +236,7 @@ public class EventMeshTCPServer extends AbstractTCPServer {
         registerProcessor(Command.LISTEN_REQUEST, listenProcessor, taskHandleExecutorService);
 
         ThreadPoolExecutor sendExecutorService = super.getTcpThreadPoolGroup().getSendExecutorService();
-        MessageTransferProcessor messageTransferProcessor = new MessageTransferProcessor(this, producer, authService, metricsRegistry);
+        MessageTransferProcessor messageTransferProcessor = new MessageTransferProcessor(this, null, authService, metricsRegistry);
         registerProcessor(Command.REQUEST_TO_SERVER, messageTransferProcessor, sendExecutorService);
         registerProcessor(Command.ASYNC_MESSAGE_TO_SERVER, messageTransferProcessor, sendExecutorService);
         registerProcessor(Command.BROADCAST_MESSAGE_TO_SERVER, messageTransferProcessor, sendExecutorService);
@@ -283,5 +292,7 @@ public class EventMeshTCPServer extends AbstractTCPServer {
         return tcpRetryer;
     }
 
+    public AuthService getAuthService() { return authService; }
+    public MetricsRegistry getMetricsRegistry() { return metricsRegistry; }
 
 }

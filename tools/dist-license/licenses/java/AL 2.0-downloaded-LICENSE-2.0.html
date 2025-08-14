@@ -110,6 +110,7 @@ s=d.getElementsByTagName('script')[0];
               <a target="_blank" href="https://www.linkedin.com/company/the-apache-software-foundation/"><img src="/images/linkedin-icon.png" alt="linkedIn icon"></a>
               <a target="_blank" href="https://www.youtube.com/c/TheApacheFoundation"><img src="/images/youtube-icon.svg" alt="youtube icon"></a>
               <a target="_blank" href="https://twitter.com/TheASF"><img src="/images/x-icon.svg" alt="X icon"></a>
+              <a target="_blank" href="https://bsky.app/profile/apache.org"><img src="/images/bluesky-icon.png" alt="Blueskey icon"></a>
             </div>
             <a href="https://donate.apache.org/48ff" target="_blank" class="btn btn-default" onclick="_paq.push(['trackEvent', 'click', 'SponsorASF Button']);">Donate</a>
           </div>
@@ -201,12 +202,24 @@ s=d.getElementsByTagName('script')[0];
       </div>
     </nav>
   </header>
+     <!-- Script is to make the input field ready as soon as user click the search button-->
+      <!-- script could be simplyfy and shorten in length bootstrap framework  -->
+     <script>
+   document.addEventListener('DOMContentLoaded', function () {
+    // Using Bootstrap's event system for dropdowns
+    $(document).on('shown.bs.dropdown', '.dropdown', function () {
+        // Check if this is the search dropdown
+        if ($(this).find('.glyphicon-search').length > 0) {
+            // Find and focus the search input
+            setTimeout(function() {
+                $('.pagefind-ui__search-input').focus();
+            }, 50); // Small delay to ensure input is ready
+        }
+    });
+});
+  </script>
   <!-- / Navigation -->
   <header id="main-header" class="container">
-    <div class="sideImg">
-      <a class="acevent visible-home" data-format="square"></a>
-      <a class="hidden-home" href="/"><img class="img-responsive" src="/img/asf-estd-1999-logo.jpg" alt="The Apache Software Foundation"></a>
-    </div>
     <div class="main">
       <img class="img-responsive center-block visible-home" src="/img/asf-estd-1999-logo.jpg" alt="Apache 20th Anniversary Logo">
 
@@ -488,7 +501,7 @@ limitations under the License.
       <hr class="col-lg-12 hr-white" />
       <div class="row">
         <div class="col-lg-12">
-          <p class="text-center">Copyright &#169; 2024 The Apache Software Foundation, Licensed under the <a class="white" href="/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
+          <p class="text-center">Copyright &#169; 2025 The Apache Software Foundation, Licensed under the <a class="white" href="/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
           <p class="text-center">Apache and the Apache feather logo are trademarks of The Apache Software Foundation. </p>
         </div>
       </div>

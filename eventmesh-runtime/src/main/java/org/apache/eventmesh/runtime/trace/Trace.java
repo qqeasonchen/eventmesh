@@ -33,11 +33,15 @@ import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.context.Context;
 
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Slf4j
 public class Trace {
 
     private static final Map<String, Trace> TRACE_CACHE = new HashMap<>(16);
+
+    private static final Logger log = LoggerFactory.getLogger(Trace.class);
 
     private final AtomicBoolean inited = new AtomicBoolean(false);
 
@@ -52,7 +56,11 @@ public class Trace {
     private static Trace traceBuilder(String tracePluginType, boolean useTrace) {
         Trace trace = new Trace();
         trace.useTrace = useTrace;
-        trace.eventMeshTraceService = TracePluginFactory.getEventMeshTraceService(tracePluginType);
+        if (useTrace && tracePluginType != null && !tracePluginType.trim().isEmpty()) {
+            trace.eventMeshTraceService = TracePluginFactory.getEventMeshTraceService(tracePluginType);
+        } else {
+            trace.eventMeshTraceService = null;
+        }
         return trace;
     }
 

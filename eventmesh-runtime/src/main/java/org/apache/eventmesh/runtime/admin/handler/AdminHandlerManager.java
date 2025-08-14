@@ -71,37 +71,53 @@ public class AdminHandlerManager {
 
     public void registerHttpHandler() {
         // v1 endpoints
-        initHandler(new ShowClientHandler(eventMeshTCPServer));
-        initHandler(new ShowClientBySystemHandler(eventMeshTCPServer));
-        initHandler(new RejectAllClientHandler(eventMeshTCPServer));
-        initHandler(new RejectClientByIpPortHandler(eventMeshTCPServer));
-        initHandler(new RejectClientBySubSystemHandler(eventMeshTCPServer));
-        initHandler(new RedirectClientBySubSystemHandler(eventMeshTCPServer));
-        initHandler(new RedirectClientByPathHandler(eventMeshTCPServer));
-        initHandler(new RedirectClientByIpPortHandler(eventMeshTCPServer));
-        initHandler(new ShowListenClientByTopicHandler(eventMeshTCPServer));
-        initHandler(new QueryRecommendEventMeshHandler(eventMeshTCPServer));
-        initHandler(new TCPClientHandler(eventMeshTCPServer));
-        initHandler(new HTTPClientHandler(eventMeshHTTPServer));
-        initHandler(new GrpcClientHandler(eventMeshGrpcServer));
-        initHandler(new ConfigurationHandlerV1(
-            eventMeshTCPServer.getEventMeshTCPConfiguration(),
-            eventMeshHTTPServer.getEventMeshHttpConfiguration(),
-            eventMeshGrpcServer.getEventMeshGrpcConfiguration()));
-        initHandler(new TopicHandler(eventMeshTCPServer.getEventMeshTCPConfiguration().getEventMeshStoragePluginType()));
-        initHandler(new EventHandler(eventMeshTCPServer.getEventMeshTCPConfiguration().getEventMeshStoragePluginType()));
-        initHandler(new MetaHandler(eventMeshMetaStorage));
+        if (eventMeshTCPServer != null) {
+            initHandler(new ShowClientHandler(eventMeshTCPServer));
+            initHandler(new ShowClientBySystemHandler(eventMeshTCPServer));
+            initHandler(new RejectAllClientHandler(eventMeshTCPServer));
+            initHandler(new RejectClientByIpPortHandler(eventMeshTCPServer));
+            initHandler(new RejectClientBySubSystemHandler(eventMeshTCPServer));
+            initHandler(new RedirectClientBySubSystemHandler(eventMeshTCPServer));
+            initHandler(new RedirectClientByPathHandler(eventMeshTCPServer));
+            initHandler(new RedirectClientByIpPortHandler(eventMeshTCPServer));
+            initHandler(new ShowListenClientByTopicHandler(eventMeshTCPServer));
+            initHandler(new QueryRecommendEventMeshHandler(eventMeshTCPServer));
+            initHandler(new TCPClientHandler(eventMeshTCPServer));
+            initHandler(new TopicHandler(eventMeshTCPServer.getEventMeshTCPConfiguration().getEventMeshStoragePluginType()));
+            initHandler(new EventHandler(eventMeshTCPServer.getEventMeshTCPConfiguration().getEventMeshStoragePluginType()));
+        }
+        if (eventMeshHTTPServer != null) {
+            initHandler(new HTTPClientHandler(eventMeshHTTPServer));
+        }
+        if (eventMeshGrpcServer != null) {
+            initHandler(new GrpcClientHandler(eventMeshGrpcServer));
+        }
+        if (eventMeshTCPServer != null && eventMeshHTTPServer != null && eventMeshGrpcServer != null) {
+            initHandler(new ConfigurationHandlerV1(
+                eventMeshTCPServer.getEventMeshTCPConfiguration(),
+                eventMeshHTTPServer.getEventMeshHttpConfiguration(),
+                eventMeshGrpcServer.getEventMeshGrpcConfiguration()));
+        }
+        if (eventMeshMetaStorage != null) {
+            initHandler(new MetaHandler(eventMeshMetaStorage));
+        }
 
         // v2 endpoints
-        initHandler(new ConfigurationHandler(
-            eventMeshServer.getConfiguration(),
-            eventMeshTCPServer.getEventMeshTCPConfiguration(),
-            eventMeshHTTPServer.getEventMeshHttpConfiguration(),
-            eventMeshGrpcServer.getEventMeshGrpcConfiguration()));
+        if (eventMeshTCPServer != null && eventMeshHTTPServer != null && eventMeshGrpcServer != null) {
+            initHandler(new ConfigurationHandler(
+                eventMeshServer.getConfiguration(),
+                eventMeshTCPServer.getEventMeshTCPConfiguration(),
+                eventMeshHTTPServer.getEventMeshHttpConfiguration(),
+                eventMeshGrpcServer.getEventMeshGrpcConfiguration()));
+        }
     }
 
     private void initHandler(HttpHandler httpHandler) {
         EventMeshHttpHandler eventMeshHttpHandler = httpHandler.getClass().getAnnotation(EventMeshHttpHandler.class);
+        if (eventMeshHttpHandler == null) {
+            // Skip handlers without annotation to avoid NPE
+            return;
+        }
         httpHandlerMap.putIfAbsent(eventMeshHttpHandler.path(), httpHandler);
     }
 

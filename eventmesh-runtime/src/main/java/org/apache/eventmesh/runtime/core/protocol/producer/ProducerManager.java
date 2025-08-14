@@ -23,9 +23,13 @@ import org.apache.eventmesh.runtime.core.consumergroup.ProducerGroupConf;
 import java.util.concurrent.ConcurrentHashMap;
 
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Slf4j
 public class ProducerManager {
+
+    private static final Logger log = LoggerFactory.getLogger(ProducerManager.class);
 
     private final AbstractRemotingServer eventMeshServer;
 
@@ -92,8 +96,8 @@ public class ProducerManager {
         if (producerTable.containsKey(producerGroupConfig.getGroupName())) {
             return producerTable.get(producerGroupConfig.getGroupName());
         }
-        EventMeshProducer eventMeshProducer = new EventMeshProducer();
-        eventMeshProducer.init(eventMeshServer.getConfiguration(), producerGroupConfig);
+        EventMeshProducer eventMeshProducer = new EventMeshProducer(producerGroupConfig.getGroupName(), eventMeshServer);
+        eventMeshProducer.init(producerGroupConfig.getProperties());
         producerTable.put(producerGroupConfig.getGroupName(), eventMeshProducer);
         return eventMeshProducer;
     }

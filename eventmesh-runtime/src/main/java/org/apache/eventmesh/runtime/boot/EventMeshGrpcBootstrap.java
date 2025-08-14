@@ -34,6 +34,11 @@ public class EventMeshGrpcBootstrap implements EventMeshBootstrap {
 
     private final EventMeshServer eventMeshServer;
 
+    // Manual getter method since Lombok @Getter might not be working properly
+    public EventMeshGrpcServer getEventMeshGrpcServer() {
+        return eventMeshGrpcServer;
+    }
+
     public EventMeshGrpcBootstrap(final EventMeshServer eventMeshServer) {
         this.eventMeshServer = eventMeshServer;
         ConfigService configService = ConfigService.getInstance();

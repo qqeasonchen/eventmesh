@@ -30,9 +30,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import com.google.common.eventbus.Subscribe;
 
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Slf4j
 public class ConsumerManager {
+
+    private static final Logger log = LoggerFactory.getLogger(ConsumerManager.class);
 
     private final EventMeshHTTPServer eventMeshHTTPServer;
 

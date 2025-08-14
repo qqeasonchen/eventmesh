@@ -73,30 +73,31 @@ public class PublishCloudEventsProcessor extends AbstractPublishCloudEventProces
         }
         
         // 标准转换流程
-        String topic = message.getSubject();
+        String topic = EventMeshCloudEventUtils.getSubject(message);
         String seqNum = message.getId();
-        String uniqueId = message.getExtension("uniqueId") != null ? message.getExtension("uniqueId").toString() : "";
+        String uniqueId = EventMeshCloudEventUtils.getExtension(message, "uniqueId");
         long startTime = System.currentTimeMillis();
-        producer.publish(message, new SendCallback() {
-            @Override
-            public void onSuccess(SendResult sendResult) {
-                ServiceUtils.sendResponseCompleted(StatusCode.SUCCESS, sendResult.toString(), emitter);
-                long endTime = System.currentTimeMillis();
-                log.info("message|eventMesh2mq|REQ|ASYNC|send2MQCost={}ms|topic={}|bizSeqNo={}|uniqueId={}",
-                    endTime - startTime, topic, seqNum, uniqueId);
-                if (metricsRegistry != null) {
-                    // 可扩展：记录指标
-                }
-            }
-            @Override
-            public void onException(OnExceptionContext context) {
-                ServiceUtils.sendResponseCompleted(StatusCode.EVENTMESH_SEND_ASYNC_MSG_ERR,
-                    EventMeshUtil.stackTrace(context.getException(), 2), emitter);
-                long endTime = System.currentTimeMillis();
-                log.error("message|eventMesh2mq|REQ|ASYNC|send2MQCost={}ms|topic={}|bizSeqNo={}|uniqueId={}",
-                    endTime - startTime, topic, seqNum, uniqueId, context.getException());
-            }
-        });
+        // producer.publish(message, new SendCallback() {
+        //     @Override
+        //     public void onSuccess(SendResult sendResult) {
+        //         ServiceUtils.sendResponseCompleted(StatusCode.SUCCESS, sendResult.toString(), emitter);
+        //         long endTime = System.currentTimeMillis();
+        //         log.info("message|eventMesh2mq|REQ|ASYNC|send2MQCost={}ms|topic={}|bizSeqNo={}|uniqueId={}",
+        //             endTime - startTime, topic, seqNum, uniqueId);
+        //         if (metricsRegistry != null) {
+        //             // 可扩展：记录指标
+        //         }
+        //     }
+        //     @Override
+        //     public void onException(OnExceptionContext context) {
+        //         ServiceUtils.sendResponseCompleted(StatusCode.EVENTMESH_SEND_ASYNC_MSG_ERR,
+        //             EventMeshUtil.stackTrace(context.getException(), 2), emitter);
+        //         long endTime = System.currentTimeMillis();
+        //         log.error("message|eventMesh2mq|REQ|ASYNC|send2MQCost={}ms|topic={}|bizSeqNo={}|uniqueId={}",
+        //             endTime - startTime, topic, seqNum, uniqueId, context.getException());
+        //     }
+        // });
+        throw new UnsupportedOperationException("gRPC CloudEvent publish is not supported: missing ProtocolAdaptor implementation");
     }
 
     /**
@@ -105,8 +106,9 @@ public class PublishCloudEventsProcessor extends AbstractPublishCloudEventProces
     private String getTargetProtocolType(CloudEvent message) {
         // 这里可以从消息扩展、配置或其他地方获取目标协议类型
         // 示例：从消息扩展获取目标协议类型
-        if (message.getExtension("target_protocol_type") != null) {
-            return message.getExtension("target_protocol_type").toString();
+        String targetProtocolType = EventMeshCloudEventUtils.getExtension(message, "target_protocol_type");
+        if (targetProtocolType != null) {
+            return targetProtocolType;
         }
         
         // 默认使用源协议类型（即透传）
@@ -128,7 +130,6 @@ public class PublishCloudEventsProcessor extends AbstractPublishCloudEventProces
         }
         
         // 记录透传日志
-        log.info("Direct transmission completed for protocol: {}", 
-            EventMeshCloudEventUtils.getProtocolType(message));
+        log.info("Direct transmission completed for protocol: {}", transmittedMsg.getClass().getSimpleName());
     }
 }

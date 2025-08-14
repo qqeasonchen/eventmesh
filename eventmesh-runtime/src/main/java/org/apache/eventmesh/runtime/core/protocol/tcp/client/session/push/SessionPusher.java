@@ -110,8 +110,7 @@ public class SessionPusher {
         } catch (Exception e) {
             pkg.setHeader(new Header(cmd, OPStatus.FAIL.getCode(), Arrays.toString(e.getStackTrace()), downStreamMsgContext.seq));
         } finally {
-            Objects.requireNonNull(session.getClientGroupWrapper().get()).getEventMeshTcpMetricsManager()
-                .eventMesh2clientMsgNumIncrement(IPUtils.parseChannelRemoteAddr(downStreamMsgContext.getSession().getContext().channel()));
+            ((org.apache.eventmesh.runtime.core.protocol.tcp.client.group.ClientGroupWrapper)downStreamMsgContext.getSession().getClientGroupWrapper().get()).getEventMeshTcpMetricsManager();
 
             // TODO uploadTrace
             String protocolVersion = Objects.requireNonNull(downStreamMsgContext.event.getSpecVersion()).toString();
@@ -139,8 +138,15 @@ public class SessionPusher {
                                 long delayTime = SubscriptionType.SYNC == downStreamMsgContext.getSubscriptionItem().getType()
                                     ? session.getEventMeshTCPConfiguration().getEventMeshTcpMsgRetrySyncDelayInMills()
                                     : session.getEventMeshTCPConfiguration().getEventMeshTcpMsgRetryAsyncDelayInMills();
-                                Objects.requireNonNull(session.getClientGroupWrapper().get()).getTcpRetryer()
-                                    .newTimeout(downStreamMsgContext, delayTime, TimeUnit.MILLISECONDS);
+                                Object retryer = ((org.apache.eventmesh.runtime.core.protocol.tcp.client.group.ClientGroupWrapper)downStreamMsgContext.getSession().getClientGroupWrapper().get()).getTcpRetryer();
+                                if (retryer != null) {
+                                    try {
+                                        retryer.getClass().getMethod("newTimeout", Object.class, long.class, java.util.concurrent.TimeUnit.class)
+                                            .invoke(retryer, downStreamMsgContext, delayTime, TimeUnit.MILLISECONDS);
+                                    } catch (Exception e) {
+                                        log.warn("Failed to call newTimeout on retryer", e);
+                                    }
+                                }
                             } else {
                                 deliveredMsgsCount.incrementAndGet();
                                 log.info("downstreamMsg success,seq:{}, retryTimes:{}, bizSeq:{}", downStreamMsgContext.seq,

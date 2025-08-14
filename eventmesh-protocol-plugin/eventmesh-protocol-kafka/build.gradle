@@ -17,11 +17,12 @@
 
 dependencies {
     implementation project(":eventmesh-protocol-plugin:eventmesh-protocol-api")
+    implementation project(":eventmesh-storage-plugin:eventmesh-storage-api")
     implementation "io.cloudevents:cloudevents-core"
     implementation "io.cloudevents:cloudevents-json-jackson"
     
     // Kafka dependencies
-    implementation "org.apache.kafka:kafka-clients"
+    implementation 'org.apache.kafka:kafka-clients:3.5.1'
     
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'

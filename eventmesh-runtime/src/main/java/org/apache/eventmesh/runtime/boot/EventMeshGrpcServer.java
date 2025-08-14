@@ -38,9 +38,9 @@ import org.apache.eventmesh.runtime.core.protocol.grpc.service.PublisherService;
 import org.apache.eventmesh.runtime.meta.MetaStorage;
 import org.apache.eventmesh.runtime.metrics.grpc.EventMeshGrpcMetricsManager;
 import org.apache.eventmesh.api.auth.AuthService;
-import org.apache.eventmesh.api.factory.AuthPluginFactory;
-import org.apache.eventmesh.api.producer.Producer;
 import org.apache.eventmesh.api.factory.StoragePluginFactory;
+import org.apache.eventmesh.spi.EventMeshExtensionFactory;
+import org.apache.eventmesh.api.producer.Producer;
 
 import org.apache.commons.lang3.RandomUtils;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -62,6 +62,8 @@ import io.grpc.ServerBuilder;
 import com.google.common.util.concurrent.RateLimiter;
 
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Slf4j
 public class EventMeshGrpcServer extends AbstractRemotingServer {
@@ -98,7 +100,6 @@ public class EventMeshGrpcServer extends AbstractRemotingServer {
 
     private EventMeshGrpcMetricsManager eventMeshGrpcMetricsManager;
 
-    private Producer producer;
     private AuthService authService;
     private MetricsRegistry metricsRegistry;
 
@@ -119,11 +120,19 @@ public class EventMeshGrpcServer extends AbstractRemotingServer {
         msgRateLimiter = RateLimiter.create(eventMeshGrpcConfiguration.getEventMeshMsgReqNumPerSecond());
 
         // 初始化插件
-        this.producer = StoragePluginFactory.getMeshMQProducer(eventMeshGrpcConfiguration.getEventMeshStoragePluginType());
-        this.authService = AuthPluginFactory.getAuthService(eventMeshGrpcConfiguration.getEventMeshSecurityPluginType());
-        this.metricsRegistry = MetricsPluginFactory.getMetricsRegistry(eventMeshGrpcConfiguration.getEventMeshMetricsPluginType());
+        if (eventMeshGrpcConfiguration.isEventMeshServerSecurityEnable()) {
+            this.authService = EventMeshExtensionFactory.getExtension(
+                AuthService.class, eventMeshGrpcConfiguration.getEventMeshSecurityPluginType());
+        } else {
+            this.authService = null;
+            log.info("Security is disabled, skipping AuthService plugin loading");
+        }
+        List<String> pluginTypes = eventMeshGrpcConfiguration.getEventMeshMetricsPluginType();
+        if (pluginTypes != null && !pluginTypes.isEmpty()) {
+            this.metricsRegistry = MetricsPluginFactory.getMetricsRegistry(pluginTypes.get(0));
+        }
 
-        initProducerManager();
+        // 移除 producerManager 字段和初始化
         consumerManager = new ConsumerManager(this);
         consumerManager.init();
 
@@ -132,9 +141,9 @@ public class EventMeshGrpcServer extends AbstractRemotingServer {
         int serverPort = eventMeshGrpcConfiguration.getGrpcServerPort();
 
         server = ServerBuilder.forPort(serverPort)
-            .addService(new ConsumerService(this, sendMsgExecutor))
+            .addService(new ConsumerService(this, clientMgmtExecutor, replyMsgExecutor))
             .addService(new HeartbeatService(this, sendMsgExecutor))
-            .addService(new PublisherService(this, sendMsgExecutor, producer, authService, metricsRegistry))
+            .addService(new PublisherService(this, sendMsgExecutor, null, authService, metricsRegistry))
             .build();
 
         initMetricsMonitor();
@@ -151,7 +160,7 @@ public class EventMeshGrpcServer extends AbstractRemotingServer {
     public void start() throws Exception {
         log.info("---------------EventMeshGRPCServer starting-------------------");
 
-        producerManager.start();
+        // producerManager.start(); // This line is removed
         consumerManager.start();
         grpcRetryer.start();
         server.start();
@@ -167,7 +176,7 @@ public class EventMeshGrpcServer extends AbstractRemotingServer {
     public void shutdown() throws Exception {
         log.info("---------------EventMeshGRPCServer stopping-------------------");
 
-        producerManager.shutdown();
+        // producerManager.shutdown(); // This line is removed
         consumerManager.shutdown();
         grpcRetryer.shutdown();
 
@@ -252,6 +261,10 @@ public class EventMeshGrpcServer extends AbstractRemotingServer {
 
     public EventMeshGrpcMetricsManager getEventMeshGrpcMetricsManager() {
         return eventMeshGrpcMetricsManager;
+    }
+
+    public EventMeshServer getEventMeshServer() {
+        return eventMeshServer;
     }
 
     private void initThreadPool() {

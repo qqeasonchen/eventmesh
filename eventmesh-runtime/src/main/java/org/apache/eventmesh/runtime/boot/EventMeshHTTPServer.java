@@ -55,9 +55,9 @@ import org.apache.eventmesh.runtime.core.protocol.producer.ProducerManager;
 import org.apache.eventmesh.runtime.meta.MetaStorage;
 import org.apache.eventmesh.runtime.metrics.http.EventMeshHttpMetricsManager;
 import org.apache.eventmesh.api.auth.AuthService;
-import org.apache.eventmesh.api.factory.AuthPluginFactory;
-import org.apache.eventmesh.api.producer.Producer;
 import org.apache.eventmesh.api.factory.StoragePluginFactory;
+import org.apache.eventmesh.spi.EventMeshExtensionFactory;
+import org.apache.eventmesh.api.producer.Producer;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -89,16 +89,51 @@ public class EventMeshHTTPServer extends AbstractHTTPServer {
     private final EventBus eventBus = new EventBus();
     private final transient HTTPClientPool httpClientPool = new HTTPClientPool(10);
     private ConsumerManager consumerManager;
-    private ProducerManager producerManager;
     private SubscriptionManager subscriptionManager;
     private FilterEngine filterEngine;
     private TransformerEngine transformerEngine;
     private HttpRetryer httpRetryer;
     private transient RateLimiter msgRateLimiter;
     private transient RateLimiter batchRateLimiter;
-    private Producer producer;
     private AuthService authService;
     private MetricsRegistry metricsRegistry;
+    private EventMeshHttpMetricsManager eventMeshHttpMetricsManager;
+    private HandlerService handlerService;
+    @Getter
+    private final HTTPThreadPoolGroup httpThreadPoolGroup;
+
+    // Manual getter and setter methods since Lombok @Getter might not be working properly
+    public EventMeshHttpMetricsManager getEventMeshHttpMetricsManager() {
+        return eventMeshHttpMetricsManager;
+    }
+
+    public void setEventMeshHttpMetricsManager(EventMeshHttpMetricsManager eventMeshHttpMetricsManager) {
+        this.eventMeshHttpMetricsManager = eventMeshHttpMetricsManager;
+    }
+
+    public HandlerService getHandlerService() {
+        return handlerService;
+    }
+
+    public void setHandlerService(HandlerService handlerService) {
+        this.handlerService = handlerService;
+    }
+
+    public EventMeshHTTPConfiguration getEventMeshHttpConfiguration() {
+        return eventMeshHttpConfiguration;
+    }
+
+    public EventBus getEventBus() {
+        return eventBus;
+    }
+
+    public ConsumerManager getConsumerManager() {
+        return consumerManager;
+    }
+
+    public EventMeshServer getEventMeshServer() {
+        return eventMeshServer;
+    }
 
     public EventMeshHTTPServer(final EventMeshServer eventMeshServer, final EventMeshHTTPConfiguration eventMeshHttpConfiguration) {
         super(eventMeshHttpConfiguration.getHttpServerPort(),
@@ -108,6 +143,7 @@ public class EventMeshHTTPServer extends AbstractHTTPServer {
         this.eventMeshHttpConfiguration = eventMeshHttpConfiguration;
         this.metaStorage = eventMeshServer.getMetaStorage();
         this.acl = eventMeshServer.getAcl();
+        this.httpThreadPoolGroup = new HTTPThreadPoolGroup(eventMeshHttpConfiguration);
     }
 
     public void init() throws Exception {
@@ -131,12 +167,11 @@ public class EventMeshHTTPServer extends AbstractHTTPServer {
         consumerManager = new ConsumerManager(this);
         consumerManager.init();
 
-        producerManager = new ProducerManager(this);
-        producerManager.init();
+        // 移除 producerManager 字段和初始化
 
-        filterEngine = new FilterEngine(metaStorage, producerManager, consumerManager);
+        filterEngine = new FilterEngine(metaStorage, eventMeshServer.getProducerManager(), consumerManager);
 
-        transformerEngine = new TransformerEngine(metaStorage, producerManager, consumerManager);
+        transformerEngine = new TransformerEngine(metaStorage, eventMeshServer.getProducerManager(), consumerManager);
 
         super.setHandlerService(new HandlerService());
         super.getHandlerService().setMetrics(this.getEventMeshHttpMetricsManager());
@@ -149,9 +184,18 @@ public class EventMeshHTTPServer extends AbstractHTTPServer {
         super.getHandlerService().setHttpTrace(new HTTPTrace(eventMeshHttpConfiguration.isEventMeshServerTraceEnable()));
 
         // 初始化插件
-        this.producer = StoragePluginFactory.getMeshMQProducer(eventMeshHttpConfiguration.getEventMeshStoragePluginType());
-        this.authService = AuthPluginFactory.getAuthService(eventMeshHttpConfiguration.getEventMeshSecurityPluginType());
-        this.metricsRegistry = MetricsPluginFactory.getMetricsRegistry(eventMeshHttpConfiguration.getEventMeshMetricsPluginType());
+        // 移除 this.producer = StoragePluginFactory.getMeshMQProducer(eventMeshHttpConfiguration.getEventMeshStoragePluginType());
+        if (eventMeshHttpConfiguration.isEventMeshServerSecurityEnable()) {
+            this.authService = EventMeshExtensionFactory.getExtension(
+                AuthService.class, eventMeshHttpConfiguration.getEventMeshSecurityPluginType());
+        } else {
+            this.authService = null;
+            log.info("Security is disabled, skipping AuthService plugin loading");
+        }
+        List<String> pluginTypes = eventMeshHttpConfiguration.getEventMeshMetricsPluginType();
+        if (pluginTypes != null && !pluginTypes.isEmpty()) {
+            this.metricsRegistry = MetricsPluginFactory.getMetricsRegistry(pluginTypes.get(0));
+        }
 
         registerHTTPRequestProcessor();
 
@@ -164,10 +208,10 @@ public class EventMeshHTTPServer extends AbstractHTTPServer {
         this.getEventMeshHttpMetricsManager().start();
 
         consumerManager.start();
-        producerManager.start();
+        // 移除 producerManager.start();
         httpRetryer.start();
         // filterEngine depend on metaStorage
-        if (metaStorage.getStarted().get()) {
+        if (metaStorage != null && metaStorage.getStarted().get()) {
             filterEngine.start();
         }
 
@@ -192,11 +236,11 @@ public class EventMeshHTTPServer extends AbstractHTTPServer {
 
         httpClientPool.shutdown();
 
-        producerManager.shutdown();
+        // 移除 producerManager.shutdown();
 
         httpRetryer.shutdown();
 
-        if (eventMeshHttpConfiguration.isEventMeshServerMetaStorageEnable()) {
+        if (eventMeshHttpConfiguration.isEventMeshServerMetaStorageEnable() && metaStorage != null) {
             this.unRegister();
         }
         log.info("==================EventMeshHTTPServer shutdown==================");
@@ -208,15 +252,20 @@ public class EventMeshHTTPServer extends AbstractHTTPServer {
     public boolean register() {
         boolean registerResult = false;
         try {
-            final String endPoints = IPUtils.getLocalAddress()
-                + EventMeshConstants.IP_PORT_SEPARATOR + eventMeshHttpConfiguration.getHttpServerPort();
-            final EventMeshRegisterInfo eventMeshRegisterInfo = new EventMeshRegisterInfo();
-            eventMeshRegisterInfo.setEventMeshClusterName(eventMeshHttpConfiguration.getEventMeshCluster());
-            eventMeshRegisterInfo.setEventMeshName(eventMeshHttpConfiguration.getEventMeshName()
-                + "-" + HTTP);
-            eventMeshRegisterInfo.setEndPoint(endPoints);
-            eventMeshRegisterInfo.setProtocolType(HTTP);
-            registerResult = metaStorage.register(eventMeshRegisterInfo);
+            if (metaStorage != null) {
+                final String endPoints = IPUtils.getLocalAddress()
+                    + EventMeshConstants.IP_PORT_SEPARATOR + eventMeshHttpConfiguration.getHttpServerPort();
+                final EventMeshRegisterInfo eventMeshRegisterInfo = new EventMeshRegisterInfo();
+                eventMeshRegisterInfo.setEventMeshClusterName(eventMeshHttpConfiguration.getEventMeshCluster());
+                eventMeshRegisterInfo.setEventMeshName(eventMeshHttpConfiguration.getEventMeshName()
+                    + "-" + HTTP);
+                eventMeshRegisterInfo.setEndPoint(endPoints);
+                eventMeshRegisterInfo.setProtocolType(HTTP);
+                registerResult = metaStorage.register(eventMeshRegisterInfo);
+            } else {
+                log.info("MetaStorage is null, skipping registration");
+                registerResult = true;
+            }
         } catch (Exception e) {
             log.error("eventMesh register to registry failed", e);
         }
@@ -228,20 +277,30 @@ public class EventMeshHTTPServer extends AbstractHTTPServer {
      * Related to the registry module
      */
     private void unRegister() {
-        final String endPoints = IPUtils.getLocalAddress()
-            + EventMeshConstants.IP_PORT_SEPARATOR + eventMeshHttpConfiguration.getHttpServerPort();
-        final EventMeshUnRegisterInfo eventMeshUnRegisterInfo = new EventMeshUnRegisterInfo();
-        eventMeshUnRegisterInfo.setEventMeshClusterName(eventMeshHttpConfiguration.getEventMeshCluster());
-        eventMeshUnRegisterInfo.setEventMeshName(eventMeshHttpConfiguration.getEventMeshName());
-        eventMeshUnRegisterInfo.setEndPoint(endPoints);
-        eventMeshUnRegisterInfo.setProtocolType(HTTP);
-        final boolean registerResult = metaStorage.unRegister(eventMeshUnRegisterInfo);
-        if (!registerResult) {
-            throw new EventMeshException("eventMesh fail to unRegister");
+        if (metaStorage != null) {
+            final String endPoints = IPUtils.getLocalAddress()
+                + EventMeshConstants.IP_PORT_SEPARATOR + eventMeshHttpConfiguration.getHttpServerPort();
+            final EventMeshUnRegisterInfo eventMeshUnRegisterInfo = new EventMeshUnRegisterInfo();
+            eventMeshUnRegisterInfo.setEventMeshClusterName(eventMeshHttpConfiguration.getEventMeshCluster());
+            eventMeshUnRegisterInfo.setEventMeshName(eventMeshHttpConfiguration.getEventMeshName());
+            eventMeshUnRegisterInfo.setEndPoint(endPoints);
+            eventMeshUnRegisterInfo.setProtocolType(HTTP);
+            final boolean registerResult = metaStorage.unRegister(eventMeshUnRegisterInfo);
+            if (!registerResult) {
+                throw new EventMeshException("eventMesh fail to unRegister");
+            }
+        } else {
+            log.info("MetaStorage is null, skipping unregistration");
         }
     }
 
     private void registerHTTPRequestProcessor() throws Exception {
+        if (this.getHandlerService() == null) {
+            // Fallback init to avoid NPE
+            super.setHandlerService(new HandlerService());
+            super.getHandlerService().setMetrics(this.getEventMeshHttpMetricsManager());
+            super.getHandlerService().setHttpTrace(new HTTPTrace(eventMeshHttpConfiguration.isEventMeshServerTraceEnable()));
+        }
         final BatchSendMessageProcessor batchSendMessageProcessor = new BatchSendMessageProcessor(this);
         registerProcessor(RequestCode.MSG_BATCH_SEND.getRequestCode(), batchSendMessageProcessor);
 
@@ -251,7 +310,7 @@ public class EventMeshHTTPServer extends AbstractHTTPServer {
         final SendSyncMessageProcessor sendSyncMessageProcessor = new SendSyncMessageProcessor(this);
         registerProcessor(RequestCode.MSG_SEND_SYNC.getRequestCode(), sendSyncMessageProcessor);
 
-        final SendAsyncMessageProcessor sendAsyncMessageProcessor = new SendAsyncMessageProcessor(this, producer, authService, metricsRegistry);
+        final SendAsyncMessageProcessor sendAsyncMessageProcessor = new SendAsyncMessageProcessor();
         registerProcessor(RequestCode.MSG_SEND_ASYNC.getRequestCode(), sendAsyncMessageProcessor);
 
         final SendAsyncEventProcessor sendAsyncEventProcessor = new SendAsyncEventProcessor(this);

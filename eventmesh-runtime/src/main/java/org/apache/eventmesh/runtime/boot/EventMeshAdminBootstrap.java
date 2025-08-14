@@ -34,6 +34,11 @@ public class EventMeshAdminBootstrap implements EventMeshBootstrap {
 
     private final EventMeshServer eventMeshServer;
 
+    // Manual getter method since Lombok @Getter might not be working properly
+    public EventMeshAdminServer getEventMeshAdminServer() {
+        return eventMeshAdminServer;
+    }
+
     public EventMeshAdminBootstrap(EventMeshServer eventMeshServer) {
         this.eventMeshServer = eventMeshServer;
 

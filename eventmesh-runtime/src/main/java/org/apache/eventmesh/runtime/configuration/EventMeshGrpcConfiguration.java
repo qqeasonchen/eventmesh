@@ -98,6 +98,9 @@ public class EventMeshGrpcConfiguration extends CommonConfiguration {
     @ConfigField(field = "http.msgReqnumPerSecond")
     private int eventMeshMsgReqNumPerSecond = 15000;
 
+    @ConfigField(field = "replymsg.blockQ.size")
+    private int eventMeshServerReplyMsgBlockQueueSize = 1000;
+
     @ConfigField(field = "", reload = true)
     private String eventMeshIp;
 
@@ -106,4 +109,16 @@ public class EventMeshGrpcConfiguration extends CommonConfiguration {
 
         this.eventMeshIp = IPUtils.getLocalAddress();
     }
+
+    public int getEventMeshServerSendMsgThreadNum() { return eventMeshServerSendMsgThreadNum; }
+    public int getEventMeshServerSendMsgBlockQueueSize() { return eventMeshServerSendMsgBlockQueueSize; }
+    public int getEventMeshServerSubscribeMsgThreadNum() { return eventMeshServerSubscribeMsgThreadNum; }
+    public int getEventMeshServerSubscribeMsgBlockQueueSize() { return eventMeshServerSubscribeMsgBlockQueueSize; }
+    public int getEventMeshServerPushMsgThreadNum() { return eventMeshServerPushMsgThreadNum; }
+    public int getEventMeshServerPushMsgBlockQueueSize() { return eventMeshServerPushMsgBlockQueueSize; }
+    public int getEventMeshServerReplyMsgThreadNum() { return eventMeshServerReplyMsgThreadNum; }
+    public int getEventMeshServerReplyMsgBlockQueueSize() { return eventMeshServerReplyMsgBlockQueueSize; }
+    public int getEventMeshMsgReqNumPerSecond() { return eventMeshMsgReqNumPerSecond; }
+    public int getGrpcServerPort() { return grpcServerPort; }
+    public int getEventMeshSessionExpiredInMills() { return eventMeshSessionExpiredInMills; }
 }

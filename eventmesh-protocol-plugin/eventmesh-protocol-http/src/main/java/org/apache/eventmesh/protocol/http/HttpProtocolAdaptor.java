@@ -76,9 +76,8 @@ public class HttpProtocolAdaptor<T extends ProtocolTransportObject>
     }
 
     @Override
-    public List<CloudEvent> toBatchCloudEvent(ProtocolTransportObject protocol)
-        throws ProtocolHandleException {
-        return Collections.emptyList();
+    public java.util.List<io.cloudevents.CloudEvent> toBatchCloudEvent(java.util.List<ProtocolTransportObject> protocolList) throws ProtocolHandleException {
+        return java.util.Collections.emptyList();
     }
 
     @Override

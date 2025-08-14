@@ -319,7 +319,7 @@ public class EventMeshConsumer {
 
     public void sendMessageBack(final CloudEvent event, final String uniqueId, String bizSeqNo) throws Exception {
 
-        EventMeshProducer sendMessageBack = eventMeshHTTPServer.getProducerManager().getEventMeshProducer(consumerGroupConf.getConsumerGroup());
+        EventMeshProducer sendMessageBack = eventMeshHTTPServer.getEventMeshServer().getProducerManager().getEventMeshProducer(consumerGroupConf.getConsumerGroup());
 
         if (sendMessageBack == null) {
             log.warn("consumer:{} consume fail, sendMessageBack, bizSeqNo:{}, uniqueId:{}",

@@ -1,1 +1,0 @@
-https://raw.githubusercontent.com/unicode-org/icu/main/icu4c/LICENSE

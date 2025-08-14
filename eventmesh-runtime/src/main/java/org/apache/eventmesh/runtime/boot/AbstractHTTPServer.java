@@ -137,6 +137,23 @@ public abstract class AbstractHTTPServer extends AbstractRemotingServer {
     @Getter
     private final HTTPThreadPoolGroup httpThreadPoolGroup;
 
+    // Manual setter methods since Lombok @Setter might not be working properly
+    public void setEventMeshHttpMetricsManager(EventMeshHttpMetricsManager eventMeshHttpMetricsManager) {
+        this.eventMeshHttpMetricsManager = eventMeshHttpMetricsManager;
+    }
+
+    public void setHandlerService(HandlerService handlerService) {
+        this.handlerService = handlerService;
+    }
+
+    public void setUseTrace(Boolean useTrace) {
+        this.useTrace = useTrace;
+    }
+
+    public boolean isUseTLS() {
+        return useTLS;
+    }
+
     public AbstractHTTPServer(final int port, final boolean useTLS,
         final EventMeshHTTPConfiguration eventMeshHttpConfiguration) {
         super();
@@ -538,5 +555,12 @@ public abstract class AbstractHTTPServer extends AbstractRemotingServer {
                 new HttpObjectAggregator(Integer.MAX_VALUE),
                 httpDispatcher);
         }
+    }
+
+    public int getEventMeshHttpMsgReqNumPerSecond() {
+        return eventMeshHttpConfiguration.getEventMeshHttpMsgReqNumPerSecond();
+    }
+    public int getEventMeshBatchMsgRequestNumPerSecond() {
+        return eventMeshHttpConfiguration.getEventMeshBatchMsgRequestNumPerSecond();
     }
 }

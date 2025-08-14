@@ -169,7 +169,6 @@ tasks.register('dist') {
              "eventmesh-registry:eventmesh-registry-api",
              "eventmesh-retry:eventmesh-retry-api",
              "eventmesh-runtime",
-             "eventmesh-runtime-v2",
              "eventmesh-security-plugin:eventmesh-security-api",
              "eventmesh-spi",
              "eventmesh-starter",
@@ -178,6 +177,10 @@ tasks.register('dist') {
     doLast {
         includedProjects.each {
             def subProject = findProject(it)
+            if (subProject == null) {
+                logger.warn("Project not found: ${it}, skip.")
+                return
+            }
             logger.lifecycle('Install module: module: {}', subProject.name)
             copy {
                 from subProject.jar.archivePath

@@ -330,6 +330,26 @@ public abstract class EventMeshCloudEventUtils {
         return convertedAttributes;
     }
 
+    /**
+     * 通用获取扩展属性，优先返回 ceString/int/bool/bytes/uri/uriRef/timestamp 的字符串表示。
+     */
+    public static String getExtension(CloudEvent cloudEvent, String key) {
+        if (cloudEvent == null || key == null) return null;
+        try {
+            CloudEventAttributeValue attr = cloudEvent.getAttributesOrThrow(key);
+            if (attr.hasCeString()) return attr.getCeString();
+            if (attr.hasCeInteger()) return Integer.toString(attr.getCeInteger());
+            if (attr.hasCeBoolean()) return Boolean.toString(attr.getCeBoolean());
+            if (attr.hasCeBytes()) return attr.getCeBytes().toString(Constants.DEFAULT_CHARSET);
+            if (attr.hasCeUri()) return attr.getCeUri();
+            if (attr.hasCeUriRef()) return attr.getCeUriRef();
+            if (attr.hasCeTimestamp()) return covertProtoTimestamp(attr.getCeTimestamp()).toString();
+        } catch (Exception e) {
+            // ignore
+        }
+        return null;
+    }
+
     private static OffsetDateTime covertProtoTimestamp(com.google.protobuf.Timestamp timestamp) {
         Instant instant = Instant.ofEpochSecond(timestamp.getSeconds(), timestamp.getNanos());
         return instant.atOffset(ZoneOffset.UTC);

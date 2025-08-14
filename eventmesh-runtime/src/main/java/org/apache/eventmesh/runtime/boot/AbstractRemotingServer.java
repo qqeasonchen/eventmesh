@@ -21,6 +21,8 @@ import org.apache.eventmesh.common.EventMeshThreadFactory;
 import org.apache.eventmesh.common.utils.SystemUtils;
 import org.apache.eventmesh.common.utils.ThreadUtils;
 import org.apache.eventmesh.runtime.core.protocol.producer.ProducerManager;
+import org.apache.eventmesh.api.storage.EventStorage;
+import org.apache.eventmesh.api.storage.EventDispatcher;
 
 import java.util.concurrent.TimeUnit;
 
@@ -33,17 +35,18 @@ import io.netty.util.concurrent.EventExecutorGroup;
 
 import lombok.Getter;
 import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The most basic server
  */
-@Slf4j
 @Getter
 public abstract class AbstractRemotingServer implements RemotingServer {
 
     private static final int MAX_THREADS = Runtime.getRuntime().availableProcessors();
     private static final int DEFAULT_SLEEP_SECONDS = 30;
+    protected static final Logger log = LoggerFactory.getLogger(AbstractRemotingServer.class);
 
     @Setter
     private EventLoopGroup bossGroup;
@@ -54,10 +57,48 @@ public abstract class AbstractRemotingServer implements RemotingServer {
     @Setter
     private EventExecutorGroup workerGroup;
 
-    protected ProducerManager producerManager;
+    protected EventStorage eventStorage;
+    protected EventDispatcher eventDispatcher;
+    public void setEventStorage(EventStorage eventStorage) { this.eventStorage = eventStorage; }
+    public void setEventDispatcher(EventDispatcher eventDispatcher) { this.eventDispatcher = eventDispatcher; }
+    public EventStorage getEventStorage() { return eventStorage; }
+    public EventDispatcher getEventDispatcher() { return eventDispatcher; }
 
     @Setter
     private int port;
+
+    // Manual getter and setter methods since Lombok @Getter/@Setter might not be working properly
+    public EventLoopGroup getBossGroup() {
+        return bossGroup;
+    }
+
+    public void setBossGroup(EventLoopGroup bossGroup) {
+        this.bossGroup = bossGroup;
+    }
+
+    public EventLoopGroup getIoGroup() {
+        return ioGroup;
+    }
+
+    public void setIoGroup(EventLoopGroup ioGroup) {
+        this.ioGroup = ioGroup;
+    }
+
+    public EventExecutorGroup getWorkerGroup() {
+        return workerGroup;
+    }
+
+    public void setWorkerGroup(EventExecutorGroup workerGroup) {
+        this.workerGroup = workerGroup;
+    }
+
+    public int getPort() {
+        return port;
+    }
+
+    public void setPort(int port) {
+        this.port = port;
+    }
 
     protected void buildBossGroup(final String threadPrefix) {
         if (useEpoll()) {
@@ -81,8 +122,8 @@ public abstract class AbstractRemotingServer implements RemotingServer {
     }
 
     protected void initProducerManager() throws Exception {
-        producerManager = new ProducerManager(this);
-        producerManager.init();
+        // producerManager = new ProducerManager(this); // This line is removed
+        // producerManager.init(); // This line is removed
     }
 
     public void init(final String threadPrefix) throws Exception {
@@ -92,7 +133,7 @@ public abstract class AbstractRemotingServer implements RemotingServer {
     }
 
     public void start() throws Exception {
-        producerManager.start();
+        // producerManager.start(); // This line is removed
     }
 
     public void shutdown() throws Exception {
@@ -100,9 +141,9 @@ public abstract class AbstractRemotingServer implements RemotingServer {
             bossGroup.shutdownGracefully();
             log.info("shutdown bossGroup");
         }
-        if (producerManager != null) {
-            producerManager.shutdown();
-        }
+        // if (producerManager != null) { // This line is removed
+        //     producerManager.shutdown(); // This line is removed
+        // }
 
         ThreadUtils.randomPause(TimeUnit.SECONDS.toMillis(DEFAULT_SLEEP_SECONDS));
 

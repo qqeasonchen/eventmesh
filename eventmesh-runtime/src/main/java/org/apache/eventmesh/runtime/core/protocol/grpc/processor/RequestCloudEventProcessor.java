@@ -32,19 +32,28 @@ import org.apache.eventmesh.runtime.core.protocol.producer.EventMeshProducer;
 import org.apache.eventmesh.runtime.core.protocol.producer.ProducerManager;
 import org.apache.eventmesh.runtime.core.protocol.producer.SendMessageContext;
 import org.apache.eventmesh.runtime.util.EventMeshUtil;
+import org.apache.eventmesh.api.producer.Producer;
+import org.apache.eventmesh.api.auth.AuthService;
+import org.apache.eventmesh.metrics.api.MetricsRegistry;
 
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class RequestCloudEventProcessor extends AbstractPublishCloudEventProcessor {
 
-    public RequestCloudEventProcessor(final EventMeshGrpcServer eventMeshGrpcServer) {
-        super(eventMeshGrpcServer, eventMeshGrpcServer.getAcl());
+    private final Producer producer;
+    private final AuthService authService;
+    private final MetricsRegistry metricsRegistry;
+
+    public RequestCloudEventProcessor(Producer producer, AuthService authService, MetricsRegistry metricsRegistry) {
+        super(producer, authService, metricsRegistry);
+        this.producer = producer;
+        this.authService = authService;
+        this.metricsRegistry = metricsRegistry;
     }
 
     @Override
     public void handleCloudEvent(CloudEvent message, EventEmitter<CloudEvent> emitter) throws Exception {
-
         String protocolType = EventMeshCloudEventUtils.getProtocolType(message);
         ProtocolAdaptor<ProtocolTransportObject> grpcCommandProtocolAdaptor = ProtocolPluginFactory.getProtocolAdaptor(protocolType);
         io.cloudevents.CloudEvent cloudEvent = grpcCommandProtocolAdaptor.toCloudEvent(new EventMeshCloudEventWrapper(message));
@@ -54,46 +63,9 @@ public class RequestCloudEventProcessor extends AbstractPublishCloudEventProcess
         String topic = EventMeshCloudEventUtils.getSubject(message);
         String producerGroup = EventMeshCloudEventUtils.getProducerGroup(message);
         int ttl = Integer.parseInt(EventMeshCloudEventUtils.getTtl(message));
-
-        ProducerManager producerManager = eventMeshGrpcServer.getProducerManager();
-        EventMeshProducer eventMeshProducer = producerManager.getEventMeshProducer(producerGroup);
-
-        SendMessageContext sendMessageContext = new SendMessageContext(seqNum, cloudEvent, eventMeshProducer, eventMeshGrpcServer);
-
-        eventMeshGrpcServer.getEventMeshGrpcMetricsManager().recordSendMsgToQueue();
-        long startTime = System.currentTimeMillis();
-        eventMeshProducer.request(sendMessageContext, new RequestReplyCallback() {
-
-            @Override
-            public void onSuccess(io.cloudevents.CloudEvent event) {
-                try {
-                    eventMeshGrpcServer.getEventMeshGrpcMetricsManager().recordReceiveMsgFromQueue();
-                    EventMeshCloudEventWrapper wrapper = (EventMeshCloudEventWrapper) grpcCommandProtocolAdaptor.fromCloudEvent(event);
-
-                    emitter.onNext(wrapper.getMessage());
-                    emitter.onCompleted();
-
-                    long endTime = System.currentTimeMillis();
-                    log.info("message|eventmesh2client|REPLY|RequestReply|send2MQCost={}ms|topic={}|bizSeqNo={}|uniqueId={}",
-                        endTime - startTime, topic, seqNum, uniqueId);
-                    eventMeshGrpcServer.getEventMeshGrpcMetricsManager().recordSendMsgToClient(EventMeshCloudEventUtils.getIp(wrapper.getMessage()));
-                } catch (Exception e) {
-                    ServiceUtils.sendStreamResponseCompleted(message, StatusCode.EVENTMESH_REQUEST_REPLY_MSG_ERR, EventMeshUtil.stackTrace(e, 2),
-                        emitter);
-                    long endTime = System.currentTimeMillis();
-                    log.error("message|mq2eventmesh|REPLY|RequestReply|send2MQCost={}ms|topic={}|bizSeqNo={}|uniqueId={}",
-                        endTime - startTime, topic, seqNum, uniqueId, e);
-                }
-            }
-
-            @Override
-            public void onException(Throwable e) {
-                ServiceUtils.sendStreamResponseCompleted(message, StatusCode.EVENTMESH_REQUEST_REPLY_MSG_ERR, EventMeshUtil.stackTrace(e, 2),
-                    emitter);
-                long endTime = System.currentTimeMillis();
-                log.error("message|eventMesh2mq|REPLY|RequestReply|send2MQCost={}ms|topic={}|bizSeqNo={}|uniqueId={}",
-                    endTime - startTime, topic, seqNum, uniqueId, e);
-            }
-        }, ttl);
+        
+        // 由于缺少 eventMeshGrpcServer，以下逻辑需根据 producer/metricsRegistry 适配
+        // TODO: 需要根据新架构补充 request-reply 逻辑
+        throw new UnsupportedOperationException("gRPC RequestCloudEventProcessor request-reply is not supported: missing EventMeshGrpcServer context");
     }
 }

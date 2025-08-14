@@ -171,8 +171,7 @@ public class BatchSendMessageV2Processor extends AbstractHttpRequestProcessor {
         }
 
         EventMeshProducer batchEventMeshProducer =
-            eventMeshHTTPServer.getProducerManager().getEventMeshProducer(producerGroup);
-        batchEventMeshProducer.getMqProducerWrapper().getMeshMQProducer().setExtFields();
+            eventMeshHTTPServer.getEventMeshServer().getProducerManager().getEventMeshProducer(producerGroup);
         if (!batchEventMeshProducer.isStarted()) {
             completeResponse(request, asyncContext, sendMessageBatchV2ResponseHeader,
                 EventMeshRetCode.EVENTMESH_BATCH_PRODUCER_STOPED_ERR, null, SendMessageBatchV2ResponseBody.class);

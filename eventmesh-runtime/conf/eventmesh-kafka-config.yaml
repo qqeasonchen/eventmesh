@@ -1,0 +1,14 @@
+# Kafka connector config for EventMesh RAW passthrough
+type: kafka
+kafka:
+  bootstrap.servers: "localhost:9092"
+  topic: "eventmesh-e2e-test"
+  group.id: "eventmesh-e2e-group"
+  enable.auto.commit: true
+  auto.offset.reset: earliest
+
+
+
+
+
+

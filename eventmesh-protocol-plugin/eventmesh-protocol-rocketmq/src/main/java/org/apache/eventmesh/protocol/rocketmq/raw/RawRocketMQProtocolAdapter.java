@@ -23,7 +23,7 @@ import org.apache.eventmesh.protocol.api.exception.ProtocolHandleException;
 import org.apache.eventmesh.protocol.rocketmq.raw.message.RawRocketMQMessage;
 import org.apache.eventmesh.spi.EventMeshExtensionType;
 import org.apache.eventmesh.spi.EventMeshSPI;
-import org.apache.eventmesh.spi.PluginInfo;
+import org.apache.eventmesh.protocol.api.PluginLifecycle.PluginInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,6 +32,7 @@ import java.util.List;
 
 import io.cloudevents.CloudEvent;
 import io.cloudevents.core.builder.CloudEventBuilder;
+import io.cloudevents.SpecVersion;
 
 /**
  * Raw RocketMQ protocol adapter for raw RocketMQ client communication.
@@ -45,7 +46,7 @@ public class RawRocketMQProtocolAdapter implements ProtocolAdaptor<RawRocketMQMe
     @Override
     public CloudEvent toCloudEvent(RawRocketMQMessage rawMessage) throws ProtocolHandleException {
         try {
-            CloudEventBuilder builder = CloudEventBuilder.fromSpecVersion(io.cloudevents.SpecVersion.V1_0)
+            CloudEventBuilder builder = CloudEventBuilder.fromSpecVersion(SpecVersion.V1)
                 .withId(rawMessage.getMsgId() != null ? rawMessage.getMsgId() : 
                     rawMessage.getTopic() + "_" + System.currentTimeMillis())
                 .withSource(URI.create("rocketmq://" + rawMessage.getTopic()))
@@ -99,13 +100,18 @@ public class RawRocketMQProtocolAdapter implements ProtocolAdaptor<RawRocketMQMe
     }
 
     @Override
-    public List<CloudEvent> toBatchCloudEvent(RawRocketMQMessage rawMessage) throws ProtocolHandleException {
-        // For single message, return as list with one element
-        return List.of(toCloudEvent(rawMessage));
+    public java.util.List<io.cloudevents.CloudEvent> toBatchCloudEvent(java.util.List<RawRocketMQMessage> protocolList) throws ProtocolHandleException {
+        java.util.List<io.cloudevents.CloudEvent> result = new java.util.ArrayList<>();
+        if (protocolList != null) {
+            for (RawRocketMQMessage protocol : protocolList) {
+                result.add(toCloudEvent(protocol));
+            }
+        }
+        return result;
     }
 
     @Override
-    public ProtocolTransportObject fromCloudEvent(CloudEvent cloudEvent) throws ProtocolHandleException {
+    public RawRocketMQMessage fromCloudEvent(io.cloudevents.CloudEvent cloudEvent) throws ProtocolHandleException {
         try {
             RawRocketMQMessage rawMessage = new RawRocketMQMessage();
             rawMessage.setTopic(cloudEvent.getSubject());

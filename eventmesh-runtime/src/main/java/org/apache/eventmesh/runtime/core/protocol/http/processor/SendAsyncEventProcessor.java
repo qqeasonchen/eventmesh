@@ -203,9 +203,9 @@ public class SendAsyncEventProcessor implements AsyncHttpProcessor {
 
         final EventMeshProducer eventMeshProducer;
         if (StringUtils.isNotBlank(token)) {
-            eventMeshProducer = eventMeshHTTPServer.getProducerManager().getEventMeshProducer(producerGroup, token);
+            eventMeshProducer = eventMeshHTTPServer.getEventMeshServer().getProducerManager().getEventMeshProducer(producerGroup, token);
         } else {
-            eventMeshProducer = eventMeshHTTPServer.getProducerManager().getEventMeshProducer(producerGroup);
+            eventMeshProducer = eventMeshHTTPServer.getEventMeshServer().getProducerManager().getEventMeshProducer(producerGroup);
         }
 
         if (!eventMeshProducer.isStarted()) {

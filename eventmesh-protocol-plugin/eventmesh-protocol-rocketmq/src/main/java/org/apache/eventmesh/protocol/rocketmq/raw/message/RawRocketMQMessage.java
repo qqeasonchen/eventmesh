@@ -131,4 +131,8 @@ public class RawRocketMQMessage implements ProtocolTransportObject {
         }
         return size;
     }
+
+    public String getMessageId() {
+        return this.msgId;
+    }
 } 

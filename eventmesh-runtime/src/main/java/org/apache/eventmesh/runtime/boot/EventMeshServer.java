@@ -35,6 +35,7 @@ import org.apache.eventmesh.runtime.metrics.EventMeshMetricsManager;
 import org.apache.eventmesh.runtime.metrics.MetricsManager;
 import org.apache.eventmesh.runtime.storage.StorageResource;
 import org.apache.eventmesh.runtime.trace.Trace;
+import org.apache.eventmesh.runtime.core.protocol.producer.ProducerManager;
 
 import org.apache.commons.collections4.CollectionUtils;
 
@@ -45,9 +46,9 @@ import java.util.stream.Collectors;
 
 import lombok.Getter;
 import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Slf4j
 public class EventMeshServer {
 
     @Getter
@@ -69,6 +70,9 @@ public class EventMeshServer {
     private ProducerTopicManager producerTopicManager;
 
     @Getter
+    private ProducerManager producerManager;
+
+    @Getter
     private final CommonConfiguration configuration;
 
     //  private transient ClientManageController clientManageController;
@@ -76,8 +80,14 @@ public class EventMeshServer {
     private static final List<EventMeshBootstrap> BOOTSTRAP_LIST = new CopyOnWriteArrayList<>();
 
     private static final String SERVER_STATE_MSG = "server state:{}";
+    private static final String HTTP = "HTTP";
+    private static final String TCP = "TCP";
+    private static final String GRPC = "GRPC";
+    private static final String RAW = "RAW";
 
     private static final ConfigService configService = ConfigService.getInstance();
+
+    private static final Logger log = LoggerFactory.getLogger(EventMeshServer.class);
 
     @Getter
     private EventMeshTCPServer eventMeshTCPServer = null;
@@ -93,6 +103,43 @@ public class EventMeshServer {
 
     private EventMeshMetricsManager eventMeshMetricsManager;
 
+    public EventMeshMetricsManager getEventMeshMetricsManager() {
+        return eventMeshMetricsManager;
+    }
+
+    // Manual getter methods since Lombok @Getter might not be working properly
+    public Acl getAcl() {
+        return acl;
+    }
+
+    public MetaStorage getMetaStorage() {
+        return metaStorage;
+    }
+
+    public CommonConfiguration getConfiguration() {
+        return configuration;
+    }
+
+    public EventMeshTCPServer getEventMeshTCPServer() {
+        return eventMeshTCPServer;
+    }
+
+    public EventMeshHTTPServer getEventMeshHTTPServer() {
+        return eventMeshHTTPServer;
+    }
+
+    public EventMeshGrpcServer getEventMeshGrpcServer() {
+        return eventMeshGrpcServer;
+    }
+
+    public EventMeshAdminServer getEventMeshAdminServer() {
+        return eventMeshAdminServer;
+    }
+
+    public ProducerManager getProducerManager() {
+        return producerManager;
+    }
+
     public EventMeshServer() {
 
         // Initialize configuration
@@ -100,8 +147,18 @@ public class EventMeshServer {
         AssertUtils.notNull(this.configuration, "configuration is null");
 
         // Initialize acl, registry, trace and storageResource
-        this.acl = Acl.getInstance(this.configuration.getEventMeshSecurityPluginType());
-        this.metaStorage = MetaStorage.getInstance(this.configuration.getEventMeshMetaStoragePluginType());
+        if (this.configuration.isEventMeshServerSecurityEnable()) {
+            this.acl = Acl.getInstance(this.configuration.getEventMeshSecurityPluginType());
+        } else {
+            this.acl = null;
+            log.info("Security is disabled, skipping ACL plugin loading");
+        }
+        if (this.configuration.isEventMeshServerMetaStorageEnable()) {
+            this.metaStorage = MetaStorage.getInstance(this.configuration.getEventMeshMetaStoragePluginType());
+        } else {
+            this.metaStorage = null;
+            log.info("MetaStorage is disabled, skipping MetaStorage plugin loading");
+        }
         trace = Trace.getInstance(this.configuration.getEventMeshTracePluginType(), this.configuration.isEventMeshServerTraceEnable());
         this.storageResource = StorageResource.getInstance(this.configuration.getEventMeshStoragePluginType());
 
@@ -118,6 +175,9 @@ public class EventMeshServer {
                 case GRPC:
                     BOOTSTRAP_LIST.add(new EventMeshGrpcBootstrap(this));
                     break;
+                case RAW:
+                    BOOTSTRAP_LIST.add(new EventMeshRawBootstrap(this));
+                    break;
                 default: // nothing to do
             }
         }
@@ -127,8 +187,20 @@ public class EventMeshServer {
             BOOTSTRAP_LIST.add(new EventMeshTcpBootstrap(this));
         }
 
-        // HTTP Admin Server always enabled
-        BOOTSTRAP_LIST.add(new EventMeshAdminBootstrap(this));
+        // HTTP Admin Server enabled only if explicitly configured via admin port > 0
+        try {
+            org.apache.eventmesh.runtime.configuration.EventMeshAdminConfiguration adminConf =
+                ConfigService.getInstance().buildConfigInstance(
+                    org.apache.eventmesh.runtime.configuration.EventMeshAdminConfiguration.class);
+            if (adminConf != null && adminConf.getEventMeshServerAdminPort() > 0) {
+                BOOTSTRAP_LIST.add(new EventMeshAdminBootstrap(this));
+            } else {
+                log.info("Admin HTTP server disabled (admin port <= 0)");
+            }
+        } catch (Throwable t) {
+            // Fallback to disabled on config access issues
+            log.warn("Admin HTTP server disabled due to configuration error", t);
+        }
 
         List<String> metricsPluginTypes = configuration.getEventMeshMetricsPluginType();
         if (CollectionUtils.isNotEmpty(metricsPluginTypes)) {
@@ -136,6 +208,8 @@ public class EventMeshServer {
                 .collect(Collectors.toList());
             eventMeshMetricsManager = new EventMeshMetricsManager(metricsRegistries);
         }
+
+        this.producerManager = new org.apache.eventmesh.runtime.core.protocol.producer.ProducerManager(this);
     }
 
     public void init() throws Exception {

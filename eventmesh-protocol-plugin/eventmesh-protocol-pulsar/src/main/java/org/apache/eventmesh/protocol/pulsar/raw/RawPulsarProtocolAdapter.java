@@ -23,7 +23,7 @@ import org.apache.eventmesh.protocol.api.exception.ProtocolHandleException;
 import org.apache.eventmesh.protocol.pulsar.raw.message.RawPulsarMessage;
 import org.apache.eventmesh.spi.EventMeshExtensionType;
 import org.apache.eventmesh.spi.EventMeshSPI;
-import org.apache.eventmesh.spi.PluginInfo;
+import org.apache.eventmesh.protocol.api.PluginLifecycle.PluginInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,6 +32,7 @@ import java.util.List;
 
 import io.cloudevents.CloudEvent;
 import io.cloudevents.core.builder.CloudEventBuilder;
+import io.cloudevents.SpecVersion;
 
 /**
  * Raw Pulsar protocol adapter for raw Pulsar client communication.
@@ -45,7 +46,7 @@ public class RawPulsarProtocolAdapter implements ProtocolAdaptor<RawPulsarMessag
     @Override
     public CloudEvent toCloudEvent(RawPulsarMessage rawMessage) throws ProtocolHandleException {
         try {
-            CloudEventBuilder builder = CloudEventBuilder.fromSpecVersion(io.cloudevents.SpecVersion.V1_0)
+            CloudEventBuilder builder = CloudEventBuilder.fromSpecVersion(SpecVersion.V1)
                 .withId(rawMessage.getMessageId() != null ? rawMessage.getMessageId() : 
                     rawMessage.getTopic() + "_" + System.currentTimeMillis())
                 .withSource(URI.create("pulsar://" + rawMessage.getTopic()))
@@ -90,13 +91,18 @@ public class RawPulsarProtocolAdapter implements ProtocolAdaptor<RawPulsarMessag
     }
 
     @Override
-    public List<CloudEvent> toBatchCloudEvent(RawPulsarMessage rawMessage) throws ProtocolHandleException {
-        // For single message, return as list with one element
-        return List.of(toCloudEvent(rawMessage));
+    public java.util.List<io.cloudevents.CloudEvent> toBatchCloudEvent(java.util.List<RawPulsarMessage> protocolList) throws ProtocolHandleException {
+        java.util.List<io.cloudevents.CloudEvent> result = new java.util.ArrayList<>();
+        if (protocolList != null) {
+            for (RawPulsarMessage protocol : protocolList) {
+                result.add(toCloudEvent(protocol));
+            }
+        }
+        return result;
     }
 
     @Override
-    public ProtocolTransportObject fromCloudEvent(CloudEvent cloudEvent) throws ProtocolHandleException {
+    public RawPulsarMessage fromCloudEvent(io.cloudevents.CloudEvent cloudEvent) throws ProtocolHandleException {
         try {
             RawPulsarMessage rawMessage = new RawPulsarMessage();
             rawMessage.setTopic(cloudEvent.getSubject());

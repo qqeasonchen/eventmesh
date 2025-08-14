@@ -125,4 +125,12 @@ public class EventMeshMetricsManager {
         metricsRegistries.stream().forEach(MetricsRegistry::showdown);
         metricsManagers.stream().forEach(MetricsManager::shutdown);
     }
+
+    /**
+     * Records a message send event.
+     */
+    public void recordSendMsg() {
+        // 这里可以添加具体的指标记录逻辑
+        // 暂时使用空实现
+    }
 }

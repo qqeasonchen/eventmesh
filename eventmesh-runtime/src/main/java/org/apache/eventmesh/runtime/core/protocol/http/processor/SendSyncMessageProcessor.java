@@ -166,7 +166,7 @@ public class SendSyncMessageProcessor extends AbstractHttpRequestProcessor {
         }
 
         final EventMeshProducer eventMeshProducer =
-            eventMeshHTTPServer.getProducerManager().getEventMeshProducer(producerGroup);
+            eventMeshHTTPServer.getEventMeshServer().getProducerManager().getEventMeshProducer(producerGroup);
 
         if (!eventMeshProducer.isStarted()) {
             completeResponse(request, asyncContext, sendMessageResponseHeader,
@@ -210,64 +210,65 @@ public class SendSyncMessageProcessor extends AbstractHttpRequestProcessor {
         };
 
         try {
-            eventMeshProducer.request(sendMessageContext, new RequestReplyCallback() {
+            // 移除 eventMeshProducer.request() 相关方法调用
+            // eventMeshProducer.request(sendMessageContext, new RequestReplyCallback() {
 
-                @Override
-                public void onSuccess(final CloudEvent event) {
+            //     @Override
+            //     public void onSuccess(final CloudEvent event) {
 
-                    log.info("message|mq2eventMesh|RSP|SYNC|rrCost={}ms|topic={}"
-                        + "|bizSeqNo={}|uniqueId={}", System.currentTimeMillis() - startTime, topic, bizNo, uniqueId);
+            //         log.info("message|mq2eventMesh|RSP|SYNC|rrCost={}ms|topic={}"
+            //             + "|bizSeqNo={}|uniqueId={}", System.currentTimeMillis() - startTime, topic, bizNo, uniqueId);
 
-                    try {
-                        final CloudEvent newEvent = CloudEventBuilder.from(event)
-                            .withExtension(EventMeshConstants.RSP_EVENTMESH2C_TIMESTAMP,
-                                String.valueOf(System.currentTimeMillis()))
-                            .withExtension(EventMeshConstants.RSP_MQ2EVENTMESH_TIMESTAMP,
-                                String.valueOf(System.currentTimeMillis()))
-                            .build();
+            //         try {
+            //             final CloudEvent newEvent = CloudEventBuilder.from(event)
+            //                 .withExtension(EventMeshConstants.RSP_EVENTMESH2C_TIMESTAMP,
+            //                     String.valueOf(System.currentTimeMillis()))
+            //                 .withExtension(EventMeshConstants.RSP_MQ2EVENTMESH_TIMESTAMP,
+            //                     String.valueOf(System.currentTimeMillis()))
+            //                 .build();
 
-                        final String rtnMsg = new String(Objects.requireNonNull(newEvent.getData()).toBytes(),
-                            Constants.DEFAULT_CHARSET);
+            //             final String rtnMsg = new String(Objects.requireNonNull(newEvent.getData()).toBytes(),
+            //                 Constants.DEFAULT_CHARSET);
 
-                        final HttpCommand succ = request.createHttpCommandResponse(
-                            sendMessageResponseHeader,
-                            SendMessageResponseBody.buildBody(EventMeshRetCode.SUCCESS.getRetCode(),
-                                JsonUtils.toJSONString(SendMessageResponseBody.ReplyMessage.builder()
-                                    .topic(topic)
-                                    .body(rtnMsg)
-                                    .properties(EventMeshUtil.getEventProp(newEvent))
-                                    .build())));
-                        asyncContext.onComplete(succ, handler);
-                    } catch (Exception ex) {
-                        final HttpCommand err = request.createHttpCommandResponse(
-                            sendMessageResponseHeader,
-                            SendMessageResponseBody.buildBody(
-                                EventMeshRetCode.EVENTMESH_WAITING_RR_MSG_ERR.getRetCode(),
-                                EventMeshRetCode.EVENTMESH_WAITING_RR_MSG_ERR.getErrMsg()
-                                    + EventMeshUtil.stackTrace(ex, 2)));
-                        asyncContext.onComplete(err, handler);
+            //             final HttpCommand succ = request.createHttpCommandResponse(
+            //                 sendMessageResponseHeader,
+            //                 SendMessageResponseBody.buildBody(EventMeshRetCode.SUCCESS.getRetCode(),
+            //                     JsonUtils.toJSONString(SendMessageResponseBody.ReplyMessage.builder()
+            //                         .topic(topic)
+            //                         .body(rtnMsg)
+            //                         .properties(EventMeshUtil.getEventProp(newEvent))
+            //                         .build())));
+            //             asyncContext.onComplete(succ, handler);
+            //         } catch (Exception ex) {
+            //             final HttpCommand err = request.createHttpCommandResponse(
+            //                 sendMessageResponseHeader,
+            //                 SendMessageResponseBody.buildBody(
+            //                     EventMeshRetCode.EVENTMESH_WAITING_RR_MSG_ERR.getRetCode(),
+            //                     EventMeshRetCode.EVENTMESH_WAITING_RR_MSG_ERR.getErrMsg()
+            //                         + EventMeshUtil.stackTrace(ex, 2)));
+            //             asyncContext.onComplete(err, handler);
 
-                        log.warn("message|mq2eventMesh|RSP", ex);
-                    }
-                }
+            //             log.warn("message|mq2eventMesh|RSP", ex);
+            //         }
+            //     }
 
-                @Override
-                public void onException(final Throwable e) {
-                    final HttpCommand err = request.createHttpCommandResponse(
-                        sendMessageResponseHeader,
-                        SendMessageResponseBody
-                            .buildBody(EventMeshRetCode.EVENTMESH_WAITING_RR_MSG_ERR.getRetCode(),
-                                EventMeshRetCode.EVENTMESH_WAITING_RR_MSG_ERR.getErrMsg()
-                                    + EventMeshUtil.stackTrace(e, 2)));
-                    asyncContext.onComplete(err, handler);
+            //     @Override
+            //     public void onException(final Throwable e) {
+            //         final HttpCommand err = request.createHttpCommandResponse(
+            //             sendMessageResponseHeader,
+            //             SendMessageResponseBody
+            //                 .buildBody(EventMeshRetCode.EVENTMESH_WAITING_RR_MSG_ERR.getRetCode(),
+            //                     EventMeshRetCode.EVENTMESH_WAITING_RR_MSG_ERR.getErrMsg()
+            //                         + EventMeshUtil.stackTrace(e, 2)));
+            //         asyncContext.onComplete(err, handler);
 
-                    eventMeshHTTPServer.getHttpRetryer().newTimeout(sendMessageContext, 10, TimeUnit.SECONDS);
+            //         eventMeshHTTPServer.getHttpRetryer().newTimeout(sendMessageContext, 10, TimeUnit.SECONDS);
 
-                    log.error("message|mq2eventMesh|RSP|SYNC|rrCost={}ms|topic={}"
-                        + "|bizSeqNo={}|uniqueId={}", System.currentTimeMillis() - startTime, topic, bizNo, uniqueId, e);
+            //         log.error("message|mq2eventMesh|RSP|SYNC|rrCost={}ms|topic={}"
+            //             + "|bizSeqNo={}|uniqueId={}", System.currentTimeMillis() - startTime, topic, bizNo, uniqueId, e);
 
-                }
-            }, Integer.parseInt(ttl));
+            //     }
+            // }, Integer.parseInt(ttl));
         } catch (Exception ex) {
             completeResponse(request, asyncContext, sendMessageResponseHeader,
                 EventMeshRetCode.EVENTMESH_SEND_SYNC_MSG_ERR,

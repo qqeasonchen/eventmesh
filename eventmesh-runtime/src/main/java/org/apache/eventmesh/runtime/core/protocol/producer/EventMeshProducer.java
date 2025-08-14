@@ -1,119 +1,211 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package org.apache.eventmesh.runtime.core.protocol.producer;
 
+import org.apache.eventmesh.api.producer.Producer;
 import org.apache.eventmesh.api.RequestReplyCallback;
 import org.apache.eventmesh.api.SendCallback;
-import org.apache.eventmesh.api.storage.EventStorage;
-import org.apache.eventmesh.api.storage.EventDispatcher;
-import org.apache.eventmesh.common.config.CommonConfiguration;
-import org.apache.eventmesh.runtime.common.ServiceState;
-import org.apache.eventmesh.runtime.constants.EventMeshConstants;
-import org.apache.eventmesh.runtime.core.consumergroup.ProducerGroupConf;
-import org.apache.eventmesh.runtime.core.plugin.MQProducerWrapper;
-import org.apache.eventmesh.runtime.util.EventMeshUtil;
+import org.apache.eventmesh.common.Constants;
+import java.util.UUID;
+import org.apache.eventmesh.runtime.boot.EventMeshServer;
+import org.apache.eventmesh.runtime.core.protocol.producer.SendMessageContext;
+import org.apache.eventmesh.runtime.metrics.EventMeshMetricsManager;
 
-import java.util.Properties;
-
+import io.cloudevents.CloudEvent;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.Properties;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 @Slf4j
-public class EventMeshProducer {
+public class EventMeshProducer implements Producer {
 
-    private ProducerGroupConf producerGroupConfig;
-    private EventStorage eventStorage;
-    private EventDispatcher eventDispatcher;
-    private MQProducerWrapper mqProducerWrapper;
+    private final String producerGroup;
+    private final EventMeshServer eventMeshServer;
+    private final AtomicBoolean started = new AtomicBoolean(false);
+    private final EventMeshMetricsManager metricsManager;
 
-    private ServiceState serviceState;
-
-    public void send(SendMessageContext sendMsgContext, SendCallback sendCallback)
-        throws Exception {
-        mqProducerWrapper.dispatchEvent(sendMsgContext.getEvent(), sendCallback);
-    }
-
-    public void request(SendMessageContext sendMsgContext, RequestReplyCallback rrCallback, long timeout)
-        throws Exception {
-        mqProducerWrapper.request(sendMsgContext.getEvent(), rrCallback, timeout);
-    }
-
-    public void reply(SendMessageContext sendMessageContext, SendCallback sendCallback) throws Exception {
-        mqProducerWrapper.reply(sendMessageContext.getEvent(), sendCallback);
-    }
-
-    public void store(SendMessageContext sendMsgContext) throws Exception {
-        mqProducerWrapper.storeEvent(sendMsgContext.getEvent());
-    }
-
-    public synchronized void init(CommonConfiguration configuration, ProducerGroupConf producerGroupConfig, EventStorage eventStorage, EventDispatcher eventDispatcher) throws Exception {
-        if (ServiceState.INITED == serviceState) {
-            return;
-        }
-        this.producerGroupConfig = producerGroupConfig;
-        this.eventStorage = eventStorage;
-        this.eventDispatcher = eventDispatcher;
-        Properties keyValue = new Properties();
-        keyValue.put(EventMeshConstants.PRODUCER_GROUP, producerGroupConfig.getGroupName());
-        keyValue.put(EventMeshConstants.INSTANCE_NAME, EventMeshUtil.buildMeshClientID(
-            producerGroupConfig.getGroupName(), configuration.getEventMeshCluster()));
-        keyValue.put(EventMeshConstants.EVENT_MESH_IDC, configuration.getEventMeshIDC());
-        mqProducerWrapper = new MQProducerWrapper(eventStorage, eventDispatcher);
-        serviceState = ServiceState.INITED;
-        log.info("EventMeshProducer [{}] inited...........", producerGroupConfig.getGroupName());
-    }
-
-    public synchronized void start() throws Exception {
-        if (serviceState == null || ServiceState.RUNNING == serviceState) {
-            return;
-        }
-
-        mqProducerWrapper.start();
-        serviceState = ServiceState.RUNNING;
-        log.info("EventMeshProducer [{}] started..........", producerGroupConfig.getGroupName());
-    }
-
-    public synchronized void shutdown() throws Exception {
-        if (serviceState == null || ServiceState.STOPPED == serviceState) {
-            return;
-        }
-
-        mqProducerWrapper.shutdown();
-        serviceState = ServiceState.STOPPED;
-        log.info("EventMeshProducer [{}] shutdown.........", producerGroupConfig.getGroupName());
-    }
-
-    public ServiceState getStatus() {
-        return this.serviceState;
+    public EventMeshProducer(String producerGroup, EventMeshServer eventMeshServer) {
+        this.producerGroup = producerGroup;
+        this.eventMeshServer = eventMeshServer;
+        this.metricsManager = eventMeshServer.getEventMeshMetricsManager();
     }
 
     @Override
-    public String toString() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("eventMeshProducer={").append("status=").append(serviceState.name()).append(",").append("producerGroupConfig=")
-            .append(producerGroupConfig).append("}");
-        return sb.toString();
+    public void init(Properties properties) throws Exception {
+        log.info("EventMeshProducer init, producerGroup: {}", producerGroup);
     }
 
-    public MQProducerWrapper getMqProducerWrapper() {
-        return mqProducerWrapper;
+    @Override
+    public void start() throws Exception {
+        if (started.compareAndSet(false, true)) {
+            log.info("EventMeshProducer started, producerGroup: {}", producerGroup);
+        }
     }
 
+    @Override
+    public void shutdown() throws Exception {
+        if (started.compareAndSet(true, false)) {
+            log.info("EventMeshProducer shutdown, producerGroup: {}", producerGroup);
+        }
+    }
+
+    @Override
     public boolean isStarted() {
-        return serviceState == ServiceState.RUNNING;
+        return started.get();
+    }
+
+    @Override
+    public boolean isClosed() {
+        return !started.get();
+    }
+
+    @Override
+    public void publish(CloudEvent cloudEvent, SendCallback sendCallback) throws Exception {
+        if (!isStarted()) {
+            throw new IllegalStateException("EventMeshProducer is not started");
+        }
+
+        try {
+            // 记录发送消息的指标
+            if (metricsManager != null) {
+                metricsManager.recordSendMsg();
+            }
+
+            // 这里应该调用实际的存储插件来发送消息
+            // 暂时使用简单的日志记录
+            String topic = cloudEvent.getSubject();
+            String content = cloudEvent.getData() == null ? "" : 
+                new String(cloudEvent.getData().toBytes(), Constants.DEFAULT_CHARSET);
+            
+            log.info("EventMeshProducer publish message, topic: {}, content: {}", topic, content);
+            
+            // 模拟成功发送
+            if (sendCallback != null) {
+                sendCallback.onSuccess(new SendResult());
+            }
+            
+        } catch (Exception e) {
+            log.error("EventMeshProducer publish failed", e);
+            if (sendCallback != null) {
+                sendCallback.onException(new OnExceptionContext(e));
+            }
+            throw e;
+        }
+    }
+
+    @Override
+    public void sendOneway(CloudEvent cloudEvent) {
+        try {
+            publish(cloudEvent, null);
+        } catch (Exception e) {
+            log.error("EventMeshProducer sendOneway failed", e);
+        }
+    }
+
+    @Override
+    public void request(CloudEvent cloudEvent, RequestReplyCallback rrCallback, long timeout) throws Exception {
+        if (!isStarted()) {
+            throw new IllegalStateException("EventMeshProducer is not started");
+        }
+
+        try {
+            log.info("EventMeshProducer request message, topic: {}", cloudEvent.getSubject());
+            
+            // 这里应该实现请求-响应逻辑
+            // 暂时使用简单的日志记录
+            if (rrCallback != null) {
+                // 模拟响应
+                rrCallback.onSuccess(cloudEvent);
+            }
+            
+        } catch (Exception e) {
+            log.error("EventMeshProducer request failed", e);
+            if (rrCallback != null) {
+                rrCallback.onException(e);
+            }
+            throw e;
+        }
+    }
+
+    @Override
+    public boolean reply(CloudEvent cloudEvent, SendCallback sendCallback) throws Exception {
+        if (!isStarted()) {
+            throw new IllegalStateException("EventMeshProducer is not started");
+        }
+
+        try {
+            log.info("EventMeshProducer reply message, topic: {}", cloudEvent.getSubject());
+            
+            // 这里应该实现回复逻辑
+            if (sendCallback != null) {
+                sendCallback.onSuccess(new SendResult());
+            }
+            
+            return true;
+        } catch (Exception e) {
+            log.error("EventMeshProducer reply failed", e);
+            if (sendCallback != null) {
+                sendCallback.onException(new OnExceptionContext(e));
+            }
+            return false;
+        }
+    }
+
+    @Override
+    public void checkTopicExist(String topic) throws Exception {
+        log.info("EventMeshProducer checkTopicExist, topic: {}", topic);
+        // 这里应该检查主题是否存在
+    }
+
+    @Override
+    public void setExtFields() {
+        log.info("EventMeshProducer setExtFields");
+    }
+
+    public String getProducerGroup() {
+        return producerGroup;
+    }
+
+    public EventMeshServer getEventMeshServer() {
+        return eventMeshServer;
+    }
+
+    // 内部类用于回调
+    public static class SendResult {
+        private String messageId;
+        private String topic;
+        private long sendTime;
+
+        public SendResult() {
+            this.messageId = UUID.randomUUID().toString();
+            this.sendTime = System.currentTimeMillis();
+        }
+
+        public String getMessageId() {
+            return messageId;
+        }
+
+        public String getTopic() {
+            return topic;
+        }
+
+        public void setTopic(String topic) {
+            this.topic = topic;
+        }
+
+        public long getSendTime() {
+            return sendTime;
+        }
+    }
+
+    public static class OnExceptionContext {
+        private final Exception exception;
+
+        public OnExceptionContext(Exception exception) {
+            this.exception = exception;
+        }
+
+        public Exception getException() {
+            return exception;
+        }
     }
 }

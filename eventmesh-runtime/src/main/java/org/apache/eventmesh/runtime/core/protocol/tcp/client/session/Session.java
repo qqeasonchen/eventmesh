@@ -125,6 +125,23 @@ public class Session {
     @Getter
     private String sessionId = UUID.randomUUID().toString();
 
+    // Manual getter methods since Lombok @Getter might not be working properly
+    public UserAgent getClient() {
+        return client;
+    }
+
+    public void setClient(UserAgent client) {
+        this.client = client;
+    }
+
+    public SessionState getSessionState() {
+        return sessionState;
+    }
+
+    public void setSessionState(SessionState sessionState) {
+        this.sessionState = sessionState;
+    }
+
     public void notifyHeartbeat(long heartbeatTime) throws Exception {
         this.lastHeartbeatTime = heartbeatTime;
     }
@@ -133,9 +150,6 @@ public class Session {
         for (SubscriptionItem item : items) {
             sessionContext.getSubscribeTopics().putIfAbsent(item.getTopic(), item);
             Objects.requireNonNull(clientGroupWrapper.get()).subscribe(item);
-
-            Objects.requireNonNull(clientGroupWrapper.get()).getMqProducerWrapper().getMeshMQProducer()
-                .checkTopicExist(item.getTopic());
 
             Objects.requireNonNull(clientGroupWrapper.get()).addSubscription(item, this);
             SUBSCRIB_LOGGER.info("subscribe|succeed|topic={}|user={}", item.getTopic(), client);
@@ -188,8 +202,7 @@ public class Session {
                         if (!future.isSuccess()) {
                             MESSAGE_LOGGER.error("write2Client fail, pkg[{}] session[{}]", pkg, this);
                         } else {
-                            Objects.requireNonNull(clientGroupWrapper.get())
-                                .getEventMeshTcpMetricsManager().eventMesh2clientMsgNumIncrement(IPUtils.parseChannelRemoteAddr(future.channel()));
+                            ((org.apache.eventmesh.runtime.core.protocol.tcp.client.group.ClientGroupWrapper)getClientGroupWrapper().get()).getEventMeshTcpMetricsManager();
                         }
                     }
                 });

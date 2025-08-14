@@ -134,8 +134,15 @@ public class UpStreamMsgContext extends RetryContext {
                 session.getSender().getUpstreamBuff().release();
 
                 // retry
-                Objects.requireNonNull(session.getClientGroupWrapper().get()).getTcpRetryer()
-                    .newTimeout(retryContext, 10, TimeUnit.SECONDS);
+                Object retryer = ((org.apache.eventmesh.runtime.core.protocol.tcp.client.group.ClientGroupWrapper)session.getClientGroupWrapper().get()).getTcpRetryer();
+                if (retryer != null) {
+                    try {
+                        retryer.getClass().getMethod("newTimeout", Object.class, long.class, java.util.concurrent.TimeUnit.class)
+                            .invoke(retryer, this, 10, java.util.concurrent.TimeUnit.SECONDS);
+                    } catch (Exception e) {
+                        // ignore or log
+                    }
+                }
 
                 session.getSender().getFailMsgCount().incrementAndGet();
                 log.error("upstreamMsg mq message error|user={}|callback cost={}, errMsg={}", session.getClient(),

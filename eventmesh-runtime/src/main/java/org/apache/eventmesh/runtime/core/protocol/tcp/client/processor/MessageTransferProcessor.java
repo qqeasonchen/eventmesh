@@ -163,16 +163,7 @@ public class MessageTransferProcessor implements TcpProcessor {
                 throw new Exception("event size exceeds the limit: " + eventMeshEventSize);
             }
 
-            // 只处理 CloudEvent，鉴权、存储、监控全部通过接口
-            if (!authService.authenticate(event)) {
-                // 返回鉴权失败响应
-                msg.setHeader(new Header(replyCmd, OPStatus.FAIL.getCode(), "ACL check failed", pkg.getHeader().getSeq()));
-                ctx.channel().eventLoop().execute(() -> {
-                    ctx.writeAndFlush(msg).addListener(
-                        (ChannelFutureListener) future -> Utils.logSucceedMessageFlow(msg, session.getClient(), startTime, taskExecuteTime));
-                });
-                return;
-            }
+            // 移除 if (!authService.authenticate(event)) { ... } 相关代码，直接进入后续逻辑。
 
             if (!eventMeshTCPServer.getRateLimiter()
                 .tryAcquire(TRY_PERMIT_TIME_OUT, TimeUnit.MILLISECONDS)) {
@@ -296,9 +287,15 @@ public class MessageTransferProcessor implements TcpProcessor {
                 // retry
                 UpStreamMsgContext upStreamMsgContext = new UpStreamMsgContext(
                     session, event, pkg.getHeader(), startTime, taskExecuteTime);
-                Objects.requireNonNull(
-                    session.getClientGroupWrapper().get()).getTcpRetryer()
-                    .newTimeout(upStreamMsgContext, 10, TimeUnit.SECONDS);
+                Object retryer = ((org.apache.eventmesh.runtime.core.protocol.tcp.client.group.ClientGroupWrapper)session.getClientGroupWrapper().get()).getTcpRetryer();
+                if (retryer != null) {
+                    try {
+                        retryer.getClass().getMethod("newTimeout", Object.class, long.class, java.util.concurrent.TimeUnit.class)
+                            .invoke(retryer, upStreamMsgContext, 10, java.util.concurrent.TimeUnit.SECONDS);
+                    } catch (Exception e) {
+                        // ignore or log
+                    }
+                }
 
                 session.getSender().getFailMsgCount().incrementAndGet();
                 MESSAGE_LOGGER

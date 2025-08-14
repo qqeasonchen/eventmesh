@@ -99,7 +99,10 @@ public class BatchSendMessageProcessor extends AbstractHttpRequestProcessor {
 
         String protocolType = sendMessageBatchRequestHeader.getProtocolType();
         ProtocolAdaptor<ProtocolTransportObject> httpCommandProtocolAdaptor = ProtocolPluginFactory.getProtocolAdaptor(protocolType);
-        List<CloudEvent> eventList = httpCommandProtocolAdaptor.toBatchCloudEvent(request);
+        // 假设 request 是 HttpCommand，需转换为 List<ProtocolTransportObject>
+        List<ProtocolTransportObject> protocolList = new ArrayList<>();
+        protocolList.add(request); // 若 request 本身为单条消息，直接加入列表
+        List<CloudEvent> eventList = httpCommandProtocolAdaptor.toBatchCloudEvent(protocolList);
 
         if (CollectionUtils.isEmpty(eventList)) {
             completeResponse(request, asyncContext, sendMessageBatchResponseHeader,
@@ -168,9 +171,7 @@ public class BatchSendMessageProcessor extends AbstractHttpRequestProcessor {
             return;
         }
 
-        EventMeshProducer batchEventMeshProducer = eventMeshHTTPServer.getProducerManager().getEventMeshProducer(producerGroup);
-
-        batchEventMeshProducer.getMqProducerWrapper().getMeshMQProducer().setExtFields();
+        EventMeshProducer batchEventMeshProducer = eventMeshHTTPServer.getEventMeshServer().getProducerManager().getEventMeshProducer(producerGroup);
 
         if (!batchEventMeshProducer.isStarted()) {
             completeResponse(request, asyncContext, sendMessageBatchResponseHeader,

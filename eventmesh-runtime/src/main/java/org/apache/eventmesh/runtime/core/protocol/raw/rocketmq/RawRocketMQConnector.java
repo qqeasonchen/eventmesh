@@ -1,20 +1,3 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package org.apache.eventmesh.runtime.core.protocol.raw.rocketmq;
 
 import org.apache.eventmesh.common.protocol.ProtocolTransportObject;
@@ -25,46 +8,63 @@ import org.apache.eventmesh.protocol.rocketmq.raw.RawRocketMQProtocolAdapter;
 import org.apache.eventmesh.protocol.rocketmq.raw.message.RawRocketMQMessage;
 import org.apache.eventmesh.runtime.core.protocol.raw.RawConnector;
 import org.apache.eventmesh.runtime.core.protocol.raw.RawMessageHandler;
+import org.apache.eventmesh.api.producer.Producer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Raw RocketMQ connector for handling raw RocketMQ protocol messages.
- * This connector provides direct communication with RocketMQ clients
- * without CloudEvent conversion for better performance.
- */
-public class RawRocketMQConnector extends RawConnector {
-
+public class RawRocketMQConnector implements RawConnector {
+    
     private static final Logger log = LoggerFactory.getLogger(RawRocketMQConnector.class);
-
-    private final RawRocketMQProtocolAdapter protocolAdaptor;
+    
+    private ProtocolAdaptor protocolAdaptor;
     private final RawMessageHandler messageHandler;
+    private final Producer producer;
+    private boolean running = false;
 
-    public RawRocketMQConnector() {
+    public RawRocketMQConnector(Producer producer, RawMessageHandler messageHandler) {
+        this.producer = producer;
+        this.messageHandler = messageHandler;
         this.protocolAdaptor = new org.apache.eventmesh.protocol.rocketmq.raw.RawRocketMQProtocolAdapter();
-        this.messageHandler = new RawMessageHandler();
     }
 
-    /**
-     * Handle raw RocketMQ message with protocol detection and optimization.
-     *
-     * @param message the raw RocketMQ message
-     */
+    @Override
+    public void start() {
+        running = true;
+        log.info("Raw RocketMQ connector started");
+    }
+
+    @Override
+    public void shutdown() throws Exception {
+        running = false;
+        log.info("Raw RocketMQ connector stopped");
+    }
+
+    @Override
+    public boolean isRunning() {
+        return running;
+    }
+
+    @Override
+    public String getConnectorType() {
+        return "rocketmq-raw";
+    }
+
     public void handleRawRocketMQMessage(RawRocketMQMessage message) {
-        try {
-            // Detect protocol type for optimization
-            String protocolType = detectProtocolType(message);
-            
-            if (canTransmitDirectly(protocolType)) {
-                handleDirectTransmission(message);
-            } else {
-                handleWithConversion(message);
-            }
-        } catch (Exception e) {
-            log.error("Failed to handle raw RocketMQ message: {}", e.getMessage(), e);
+        if (!running) {
+            log.warn("Raw RocketMQ connector is not running, message ignored");
+            return;
+        }
+
+        String protocolType = detectProtocolType(message);
+        
+        // Check if we can handle this message directly
+        if (canTransmitDirectly(protocolType)) {
+            handleDirectTransmission(message);
+        } else {
+            handleWithConversion(message);
         }
     }
 
@@ -78,7 +78,7 @@ public class RawRocketMQConnector extends RawConnector {
             log.debug("Using direct transmission for RocketMQ message: {}", message.getMessageId());
             
             // Direct transmission without CloudEvent conversion
-            messageHandler.handleDirectTransmission(message, "rocketmq-raw");
+            messageHandler.handleMessage(message);
             
         } catch (Exception e) {
             log.error("Failed to handle direct transmission for RocketMQ message: {}", e.getMessage(), e);
@@ -95,8 +95,8 @@ public class RawRocketMQConnector extends RawConnector {
             log.debug("Converting RocketMQ message to CloudEvent: {}", message.getMessageId());
             
             // Convert to CloudEvent for cross-protocol communication
-            var cloudEvent = protocolAdaptor.toCloudEvent(message);
-            messageHandler.handleWithConversion(cloudEvent, "rocketmq-raw");
+            io.cloudevents.CloudEvent cloudEvent = protocolAdaptor.toCloudEvent(message);
+            messageHandler.handleCloudEvent(cloudEvent);
             
         } catch (ProtocolHandleException e) {
             log.error("Failed to convert RocketMQ message to CloudEvent: {}", e.getMessage(), e);
@@ -147,22 +147,17 @@ public class RawRocketMQConnector extends RawConnector {
     }
 
     @Override
-    public ProtocolAdaptor<ProtocolTransportObject> getProtocolAdaptor() {
-        return protocolAdaptor;
+    public org.apache.eventmesh.runtime.core.protocol.raw.RawConnector.RawConnectorStats getStats() {
+        return new RawRocketMQConnectorStats();
     }
 
-    @Override
-    public String getProtocolType() {
-        return "rocketmq-raw";
-    }
-
-    @Override
-    public void start() {
-        log.info("Raw RocketMQ connector started");
-    }
-
-    @Override
-    public void stop() {
-        log.info("Raw RocketMQ connector stopped");
+    // 内部类实现
+    private static class RawRocketMQConnectorStats implements org.apache.eventmesh.runtime.core.protocol.raw.RawConnector.RawConnectorStats {
+        @Override
+        public int getPendingMessageCount() { return 0; }
+        @Override
+        public boolean isShutdown() { return false; }
+        @Override
+        public String getConnectorType() { return "rocketmq"; }
     }
 } 

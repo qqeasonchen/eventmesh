@@ -28,10 +28,13 @@ import io.netty.channel.ChannelHandlerContext;
 import lombok.RequiredArgsConstructor;
 
 
-@RequiredArgsConstructor
 public class AdminMetricsProcessor extends AbstractHttpRequestProcessor {
 
     private final EventMeshAdminServer eventMeshAdminServer;
+
+    public AdminMetricsProcessor(EventMeshAdminServer eventMeshAdminServer) {
+        this.eventMeshAdminServer = eventMeshAdminServer;
+    }
 
     @Override
     public void processRequest(ChannelHandlerContext ctx, AsyncContext<HttpCommand> asyncContext) throws Exception {

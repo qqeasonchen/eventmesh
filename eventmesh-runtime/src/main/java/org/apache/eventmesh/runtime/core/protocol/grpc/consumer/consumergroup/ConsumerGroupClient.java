@@ -71,6 +71,16 @@ public class ConsumerGroupClient {
         this.lastUpTime = lastUpTime;
     }
 
+    public String getTopic() { return topic; }
+    public String getIp() { return ip; }
+    public String getPid() { return pid; }
+    public String getSys() { return sys; }
+    public String getUrl() { return url; }
+    public SubscriptionMode getSubscriptionMode() { return subscriptionMode; }
+    public EventEmitter<CloudEvent> getEventEmitter() { return eventEmitter; }
+    public Date getLastUpTime() { return lastUpTime; }
+    public String getConsumerGroup() { return consumerGroup; }
+
     @Override
     public String toString() {
         return "endPoint={env=" + env

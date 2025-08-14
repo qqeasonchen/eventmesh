@@ -25,11 +25,15 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Slf4j
 public class StorageResource {
 
     private static final Map<String, StorageResource> STORAGE_RESOURCE_CACHE = new HashMap<>(16);
+
+    private static final Logger log = LoggerFactory.getLogger(StorageResource.class);
 
     private StorageResourceService storageResourceService;
 

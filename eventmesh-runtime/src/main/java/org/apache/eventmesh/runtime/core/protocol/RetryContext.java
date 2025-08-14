@@ -89,7 +89,6 @@ public abstract class RetryContext implements TimerTask {
             RetryConfiguration retryConfiguration = RetryConfiguration.builder()
                 .event(event)
                 .consumerGroupName(consumerGroupName)
-                .producer(producer.getMqProducerWrapper().getMeshMQProducer())
                 .topic(getHandleMessageContext().getTopic())
                 .build();
             retryStrategy.get().retry(retryConfiguration);

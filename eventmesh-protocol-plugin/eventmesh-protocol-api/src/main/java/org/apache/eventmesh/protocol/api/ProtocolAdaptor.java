@@ -18,75 +18,49 @@
 package org.apache.eventmesh.protocol.api;
 
 import org.apache.eventmesh.common.protocol.ProtocolTransportObject;
-import org.apache.eventmesh.protocol.api.exception.ProtocolHandleException;
 import org.apache.eventmesh.spi.EventMeshExtensionType;
 import org.apache.eventmesh.spi.EventMeshSPI;
-import org.apache.eventmesh.spi.PluginLifecycle;
+import org.apache.eventmesh.protocol.api.exception.ProtocolHandleException;
 
-import java.util.List;
-
-import io.cloudevents.CloudEvent;
-
-/**
- * Protocol transformer SPI interface, all protocol plugin should implementation.
- *
- * <p>All protocol stored in EventMesh is {@link CloudEvent}.
- *
- * @since 1.3.0
- */
 @EventMeshSPI(eventMeshExtensionType = EventMeshExtensionType.PROTOCOL)
 public interface ProtocolAdaptor<T extends ProtocolTransportObject> extends PluginLifecycle {
-
     /**
-     * transform protocol to {@link CloudEvent}.
-     *
-     * @param protocol input protocol
-     * @return cloud event
-     */
-    CloudEvent toCloudEvent(T protocol) throws ProtocolHandleException;
-
-    /**
-     * transform protocol to {@link CloudEvent} list.
-     *
-     * @param protocol input protocol
-     * @return list cloud event
-     */
-    List<CloudEvent> toBatchCloudEvent(T protocol) throws ProtocolHandleException;
-
-    /**
-     * Transform {@link CloudEvent} to target protocol.
-     *
-     * @param cloudEvent clout event
-     * @return target protocol
-     */
-    ProtocolTransportObject fromCloudEvent(CloudEvent cloudEvent) throws ProtocolHandleException;
-
-    /**
-     * Get protocol type.
-     *
-     * @return protocol type, protocol type should not be null
+     * 获取协议类型（如 kafka-raw、pulsar-raw、rocketmq-raw 等）
      */
     String getProtocolType();
 
     /**
-     * Check if this protocol can be directly transmitted without conversion.
-     * 
-     * @param targetProtocolType target protocol type
-     * @return true if can be transmitted directly, false otherwise
+     * 判断是否可以直通传递到目标协议
      */
     default boolean canTransmitDirectly(String targetProtocolType) {
         return getProtocolType().equals(targetProtocolType);
     }
 
     /**
-     * Directly transmit the protocol object without conversion to CloudEvent.
-     * This method should be implemented for performance optimization when source and target protocols are the same.
-     * 
-     * @param protocol input protocol
-     * @return transmitted protocol object
+     * 直通传递协议对象（无需 CloudEvent 转换）
      */
     default T transmitDirectly(T protocol) throws ProtocolHandleException {
-        // Default implementation returns the original object
         return protocol;
     }
+
+    /**
+     * 协议对象转为 CloudEvent
+     */
+    io.cloudevents.CloudEvent toCloudEvent(T protocol) throws ProtocolHandleException;
+
+    /**
+     * CloudEvent 转为协议对象
+     */
+    T fromCloudEvent(io.cloudevents.CloudEvent cloudEvent) throws ProtocolHandleException;
+
+    /**
+     * 批量协议对象转为 CloudEvent
+     */
+    java.util.List<io.cloudevents.CloudEvent> toBatchCloudEvent(java.util.List<T> protocolList) throws ProtocolHandleException;
 }
+ 
+ 
+ 
+ 
+ 
+ 

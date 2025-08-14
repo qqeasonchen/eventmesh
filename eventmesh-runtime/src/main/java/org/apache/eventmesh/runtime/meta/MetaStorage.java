@@ -27,17 +27,22 @@ import org.apache.eventmesh.api.meta.dto.EventMeshRegisterInfo;
 import org.apache.eventmesh.api.meta.dto.EventMeshUnRegisterInfo;
 import org.apache.eventmesh.spi.EventMeshExtensionFactory;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Slf4j
 public class MetaStorage {
 
     private static final Map<String, MetaStorage> META_CACHE = new HashMap<>(16);
+
+    private static final Logger log = LoggerFactory.getLogger(MetaStorage.class);
 
     private MetaService metaService;
 
@@ -52,6 +57,9 @@ public class MetaStorage {
     }
 
     public static MetaStorage getInstance(String metaPluginType) {
+        if (metaPluginType == null || metaPluginType.trim().isEmpty()) {
+            return new MetaStorage(); // Return empty MetaStorage instance
+        }
         return META_CACHE.computeIfAbsent(metaPluginType, MetaStorage::metaStorageBuilder);
     }
 
@@ -72,14 +80,18 @@ public class MetaStorage {
         if (!inited.compareAndSet(false, true)) {
             return;
         }
-        metaService.init();
+        if (metaService != null) {
+            metaService.init();
+        }
     }
 
     public void start() throws MetaException {
         if (!started.compareAndSet(false, true)) {
             return;
         }
-        metaService.start();
+        if (metaService != null) {
+            metaService.start();
+        }
     }
 
     public void shutdown() throws MetaException {
@@ -89,53 +101,85 @@ public class MetaStorage {
             return;
         }
         synchronized (this) {
-            metaService.shutdown();
+            if (metaService != null) {
+                metaService.shutdown();
+            }
         }
     }
 
     public List<EventMeshDataInfo> findEventMeshInfoByCluster(String clusterName) throws MetaException {
-        return metaService.findEventMeshInfoByCluster(clusterName);
+        if (metaService != null) {
+            return metaService.findEventMeshInfoByCluster(clusterName);
+        }
+        return new ArrayList<>();
     }
 
     public List<EventMeshDataInfo> findAllEventMeshInfo() throws MetaException {
-        return metaService.findAllEventMeshInfo();
+        if (metaService != null) {
+            return metaService.findAllEventMeshInfo();
+        }
+        return new ArrayList<>();
     }
 
     public Map<String, Map<String, Integer>> findEventMeshClientDistributionData(String clusterName, String group, String purpose)
         throws MetaException {
-        return metaService.findEventMeshClientDistributionData(clusterName, group, purpose);
+        if (metaService != null) {
+            return metaService.findEventMeshClientDistributionData(clusterName, group, purpose);
+        }
+        return new HashMap<>();
     }
 
     public void registerMetadata(Map<String, String> metadata) {
-        metaService.registerMetadata(metadata);
+        if (metaService != null) {
+            metaService.registerMetadata(metadata);
+        }
     }
 
     public void updateMetaData(Map<String, String> metadata) {
-        metaService.updateMetaData(metadata);
+        if (metaService != null) {
+            metaService.updateMetaData(metadata);
+        }
     }
 
     public boolean register(EventMeshRegisterInfo eventMeshRegisterInfo) throws MetaException {
-        return metaService.register(eventMeshRegisterInfo);
+        if (metaService != null) {
+            return metaService.register(eventMeshRegisterInfo);
+        }
+        return true;
     }
 
     public boolean unRegister(EventMeshUnRegisterInfo eventMeshUnRegisterInfo) throws MetaException {
-        return metaService.unRegister(eventMeshUnRegisterInfo);
+        if (metaService != null) {
+            return metaService.unRegister(eventMeshUnRegisterInfo);
+        }
+        return true;
     }
 
     public List<EventMeshServicePubTopicInfo> findEventMeshServicePubTopicInfos() throws Exception {
-        return metaService.findEventMeshServicePubTopicInfos();
+        if (metaService != null) {
+            return metaService.findEventMeshServicePubTopicInfos();
+        }
+        return new ArrayList<>();
     }
 
     public EventMeshAppSubTopicInfo findEventMeshAppSubTopicInfo(String group) throws Exception {
-        return metaService.findEventMeshAppSubTopicInfoByGroup(group);
+        if (metaService != null) {
+            return metaService.findEventMeshAppSubTopicInfoByGroup(group);
+        }
+        return null;
     }
 
     public Map<String, String> getMetaData(String key, boolean fuzzyEnabled) {
-        return metaService.getMetaData(key, fuzzyEnabled);
+        if (metaService != null) {
+            return metaService.getMetaData(key, fuzzyEnabled);
+        }
+        return new HashMap<>();
     }
 
     public void getMetaDataWithListener(MetaServiceListener metaServiceListener, String key) throws Exception {
-        metaService.getMetaDataWithListener(metaServiceListener, key);
+        if (metaService != null) {
+            metaService.getMetaDataWithListener(metaServiceListener, key);
+        }
     }
 
     public AtomicBoolean getInited() {

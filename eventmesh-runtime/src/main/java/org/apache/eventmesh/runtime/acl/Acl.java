@@ -31,12 +31,14 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Slf4j
 public class Acl {
 
     private static final Map<String, Acl> ACL_CACHE = new HashMap<>(16);
+
+    private static final Logger log = LoggerFactory.getLogger(Acl.class);
 
     private AclService aclService;
 
@@ -51,6 +53,9 @@ public class Acl {
     }
 
     public static Acl getInstance(String aclPluginType) {
+        if (aclPluginType == null || aclPluginType.trim().isEmpty()) {
+            return new Acl(); // Return empty ACL instance
+        }
         return ACL_CACHE.computeIfAbsent(aclPluginType, Acl::aclBuilder);
     }
 
@@ -71,14 +76,18 @@ public class Acl {
         if (!inited.compareAndSet(false, true)) {
             return;
         }
-        aclService.init();
+        if (aclService != null) {
+            aclService.init();
+        }
     }
 
     public void start() throws AclException {
         if (!started.compareAndSet(false, true)) {
             return;
         }
-        aclService.start();
+        if (aclService != null) {
+            aclService.start();
+        }
     }
 
     public void shutdown() throws AclException {
@@ -87,62 +96,88 @@ public class Acl {
         if (!shutdown.compareAndSet(false, true)) {
             return;
         }
-        aclService.shutdown();
+        if (aclService != null) {
+            aclService.shutdown();
+        }
     }
 
     public void doAclCheckInTcpConnect(String remoteAddr, UserAgent userAgent, int requestCode) throws AclException {
-        aclService.doAclCheckInConnect(buildTcpAclProperties(remoteAddr, userAgent, null, requestCode));
+        if (aclService != null) {
+            aclService.doAclCheckInConnect(buildTcpAclProperties(remoteAddr, userAgent, null, requestCode));
+        }
     }
 
     public void doAclCheckInTcpConnect(String remoteAddr, String token, String subsystem, Object obj) throws AclException {
-        aclService.doAclCheckInConnect(buildTcpAclProperties(remoteAddr, token, subsystem, obj));
+        if (aclService != null) {
+            aclService.doAclCheckInConnect(buildTcpAclProperties(remoteAddr, token, subsystem, obj));
+        }
     }
 
     public void doAclCheckInTcpHeartbeat(String remoteAddr, UserAgent userAgent, int requestCode) throws AclException {
-        aclService.doAclCheckInHeartbeat(buildTcpAclProperties(remoteAddr, userAgent, null, requestCode));
+        if (aclService != null) {
+            aclService.doAclCheckInHeartbeat(buildTcpAclProperties(remoteAddr, userAgent, null, requestCode));
+        }
     }
 
     public void doAclCheckInTcpSend(String remoteAddr, UserAgent userAgent, String topic, int requestCode) throws AclException {
-        aclService.doAclCheckInSend(buildTcpAclProperties(remoteAddr, userAgent, topic, requestCode));
+        if (aclService != null) {
+            aclService.doAclCheckInSend(buildTcpAclProperties(remoteAddr, userAgent, topic, requestCode));
+        }
     }
 
     public void doAclCheckInHttpSend(String remoteAddr, String user, String pass, String subsystem, String topic, int requestCode)
         throws AclException {
-        aclService.doAclCheckInSend(buildHttpAclProperties(remoteAddr, user, pass, subsystem, topic, requestCode));
+        if (aclService != null) {
+            aclService.doAclCheckInSend(buildHttpAclProperties(remoteAddr, user, pass, subsystem, topic, requestCode));
+        }
     }
 
     public void doAclCheckInHttpSend(String remoteAddr, String user, String pass, String subsystem, String topic,
         String requestURI) throws AclException {
-        aclService.doAclCheckInSend(buildHttpAclProperties(remoteAddr, user, pass, subsystem, topic, requestURI));
+        if (aclService != null) {
+            aclService.doAclCheckInSend(buildHttpAclProperties(remoteAddr, user, pass, subsystem, topic, requestURI));
+        }
     }
 
     public void doAclCheckInHttpSend(String remoteAddr, String token, String subsystem, String topic, String requestURI, Object obj)
         throws AclException {
-        aclService.doAclCheckInSend(buildHttpAclProperties(remoteAddr, token, subsystem, topic, requestURI, obj));
+        if (aclService != null) {
+            aclService.doAclCheckInSend(buildHttpAclProperties(remoteAddr, token, subsystem, topic, requestURI, obj));
+        }
     }
 
     public void doAclCheckInHttpReceive(String remoteAddr, String user, String pass, String subsystem, String topic,
         int requestCode) throws AclException {
-        aclService.doAclCheckInReceive(buildHttpAclProperties(remoteAddr, user, pass, subsystem, topic, requestCode));
+        if (aclService != null) {
+            aclService.doAclCheckInReceive(buildHttpAclProperties(remoteAddr, user, pass, subsystem, topic, requestCode));
+        }
     }
 
     public void doAclCheckInHttpReceive(String remoteAddr, String user, String pass, String subsystem, String topic,
         String requestURI) throws AclException {
-        aclService.doAclCheckInReceive(buildHttpAclProperties(remoteAddr, user, pass, subsystem, topic, requestURI));
+        if (aclService != null) {
+            aclService.doAclCheckInReceive(buildHttpAclProperties(remoteAddr, user, pass, subsystem, topic, requestURI));
+        }
     }
 
     public void doAclCheckInTcpReceive(String remoteAddr, String token, String subsystem, String topic,
         String requestURI, Object obj) throws AclException {
-        aclService.doAclCheckInReceive(buildTcpAclProperties(remoteAddr, token, subsystem, topic, requestURI, obj));
+        if (aclService != null) {
+            aclService.doAclCheckInReceive(buildTcpAclProperties(remoteAddr, token, subsystem, topic, requestURI, obj));
+        }
     }
 
     public void doAclCheckInTcpReceive(String remoteAddr, UserAgent userAgent, String topic, int requestCode) throws Exception {
-        aclService.doAclCheckInReceive(buildTcpAclProperties(remoteAddr, userAgent, topic, requestCode));
+        if (aclService != null) {
+            aclService.doAclCheckInReceive(buildTcpAclProperties(remoteAddr, userAgent, topic, requestCode));
+        }
     }
 
     public void doAclCheckInHttpHeartbeat(String remoteAddr, String user, String pass, String subsystem, String topic,
         int requestCode) throws AclException {
-        aclService.doAclCheckInHeartbeat(buildHttpAclProperties(remoteAddr, user, pass, subsystem, topic, requestCode));
+        if (aclService != null) {
+            aclService.doAclCheckInHeartbeat(buildHttpAclProperties(remoteAddr, user, pass, subsystem, topic, requestCode));
+        }
     }
 
     private AclProperties buildHttpAclProperties(String remoteAddr, String user, String pass, String subsystem, String topic, int requestCode) {

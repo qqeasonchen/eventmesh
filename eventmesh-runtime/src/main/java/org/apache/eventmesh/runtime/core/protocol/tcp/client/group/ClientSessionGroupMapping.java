@@ -194,8 +194,7 @@ public class ClientSessionGroupMapping {
     private ClientGroupWrapper constructClientGroupWrapper(String sysId, String group,
         EventMeshTCPServer eventMeshTCPServer,
         DownstreamDispatchStrategy downstreamDispatchStrategy) {
-        return new ClientGroupWrapper(sysId, group, eventMeshTCPServer,
-            downstreamDispatchStrategy);
+        return new ClientGroupWrapper(sysId, group);
     }
 
     private void initClientGroupWrapper(UserAgent user, Session session) throws Exception {

@@ -1,3 +1,4 @@
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -22,7 +23,7 @@ import org.apache.eventmesh.protocol.api.ProtocolAdaptor;
 import org.apache.eventmesh.protocol.kafka.raw.message.RawKafkaMessage;
 import org.apache.eventmesh.runtime.core.protocol.raw.RawConnector;
 import org.apache.eventmesh.runtime.core.protocol.raw.RawMessageHandler;
-import org.apache.eventmesh.runtime.core.producer.Producer;
+import org.apache.eventmesh.api.producer.Producer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,7 +43,7 @@ public class RawKafkaConnector implements RawConnector {
     private static final Logger log = LoggerFactory.getLogger(RawKafkaConnector.class);
 
     private final Producer producer;
-    private final ProtocolAdaptor<ProtocolTransportObject> protocolAdaptor;
+    private ProtocolAdaptor protocolAdaptor;
     private final RawMessageHandler messageHandler;
     private final ExecutorService executorService;
     private final ConcurrentHashMap<String, CompletableFuture<Void>> pendingMessages;
@@ -72,6 +73,9 @@ public class RawKafkaConnector implements RawConnector {
             log.info("Raw Kafka connector shutdown");
         }
     }
+
+    @Override
+    public boolean isRunning() { return running.get(); }
 
     public void handleRawKafkaMessage(RawKafkaMessage message) {
         if (!running.get()) {
@@ -103,7 +107,7 @@ public class RawKafkaConnector implements RawConnector {
     private void handleWithConversion(RawKafkaMessage message) {
         try {
             // Convert to CloudEvent and handle
-            var cloudEvent = protocolAdaptor.toCloudEvent(message);
+            io.cloudevents.CloudEvent cloudEvent = protocolAdaptor.toCloudEvent(message);
             messageHandler.handleCloudEvent(cloudEvent);
             log.debug("Raw Kafka message converted and handled: {}", message.getTopic());
         } catch (Exception e) {
@@ -122,12 +126,15 @@ public class RawKafkaConnector implements RawConnector {
         executorService.submit(() -> {
             try {
                 // Convert to CloudEvent and publish
-                var cloudEvent = protocolAdaptor.toCloudEvent(message);
-                producer.publish(cloudEvent, (result, exception) -> {
-                    if (exception != null) {
-                        completePendingMessage(messageId, exception);
-                    } else {
-                        completePendingMessage(messageId, null);
+                io.cloudevents.CloudEvent cloudEvent = protocolAdaptor.toCloudEvent(message);
+                producer.publish(cloudEvent, new org.apache.eventmesh.api.SendCallback() {
+                    @Override
+                    public void onSuccess(org.apache.eventmesh.api.SendResult sendResult) {
+                        // handle success
+                    }
+                    @Override
+                    public void onException(org.apache.eventmesh.api.exception.OnExceptionContext context) {
+                        // handle exception
                     }
                 });
             } catch (Exception e) {
@@ -149,32 +156,23 @@ public class RawKafkaConnector implements RawConnector {
         }
     }
 
-    public RawKafkaConnectorStats getStats() {
-        return new RawKafkaConnectorStats(
-            messageCount.get(),
-            errorCount.get(),
-            pendingMessages.size(),
-            running.get()
-        );
+    @Override
+    public org.apache.eventmesh.runtime.core.protocol.raw.RawConnector.RawConnectorStats getStats() {
+        return new RawKafkaConnectorStats();
     }
 
-    public static class RawKafkaConnectorStats {
-        private final long totalMessages;
-        private final long totalErrors;
-        private final int pendingMessageCount;
-        private final boolean isRunning;
-
-        public RawKafkaConnectorStats(long totalMessages, long totalErrors, 
-                                    int pendingMessageCount, boolean isRunning) {
-            this.totalMessages = totalMessages;
-            this.totalErrors = totalErrors;
-            this.pendingMessageCount = pendingMessageCount;
-            this.isRunning = isRunning;
-        }
-
-        public long getTotalMessages() { return totalMessages; }
-        public long getTotalErrors() { return totalErrors; }
-        public int getPendingMessageCount() { return pendingMessageCount; }
-        public boolean isRunning() { return isRunning; }
+    @Override
+    public String getConnectorType() {
+        return "kafka";
     }
-} 
+
+    // 内部类实现
+    private static class RawKafkaConnectorStats implements org.apache.eventmesh.runtime.core.protocol.raw.RawConnector.RawConnectorStats {
+        @Override
+        public int getPendingMessageCount() { return 0; }
+        @Override
+        public boolean isShutdown() { return false; }
+        @Override
+        public String getConnectorType() { return "kafka"; }
+    }
+}

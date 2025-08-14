@@ -26,7 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import io.cloudevents.CloudEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.apache.eventmesh.common.extension.EventMeshExtensionFactory;
+import org.apache.eventmesh.spi.EventMeshExtensionFactory;
 
 /**
  * Protocol plugin factory for managing protocol adaptors.

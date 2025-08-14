@@ -104,31 +104,14 @@ public class ReplyMessageProcessor {
         ProtocolAdaptor<ProtocolTransportObject> grpcCommandProtocolAdaptor = ProtocolPluginFactory.getProtocolAdaptor(protocolType);
         io.cloudevents.CloudEvent cloudEvent = grpcCommandProtocolAdaptor.toCloudEvent(new EventMeshCloudEventWrapper(messageReply));
 
-        ProducerManager producerManager = eventMeshGrpcServer.getProducerManager();
+        ProducerManager producerManager = eventMeshGrpcServer.getEventMeshServer().getProducerManager();
         EventMeshProducer eventMeshProducer = producerManager.getEventMeshProducer(producerGroup);
 
         SendMessageContext sendMessageContext = new SendMessageContext(seqNum, cloudEvent, eventMeshProducer, eventMeshGrpcServer);
 
         eventMeshGrpcServer.getEventMeshGrpcMetricsManager().recordSendMsgToQueue();
         long startTime = System.currentTimeMillis();
-        eventMeshProducer.reply(sendMessageContext, new SendCallback() {
-
-            @Override
-            public void onSuccess(SendResult sendResult) {
-                long endTime = System.currentTimeMillis();
-                log.info("message|mq2eventmesh|REPLY|ReplyToServer|send2MQCost={}ms|topic={}|bizSeqNo={}|uniqueId={}",
-                    endTime - startTime, replyTopic, seqNum, uniqueId);
-            }
-
-            @Override
-            public void onException(OnExceptionContext onExceptionContext) {
-                ServiceUtils.sendStreamResponseCompleted(messageReply, StatusCode.EVENTMESH_REPLY_MSG_ERR,
-                    EventMeshUtil.stackTrace(onExceptionContext.getException(), 2), emitter);
-                long endTime = System.currentTimeMillis();
-                log.error("message|mq2eventmesh|REPLY|ReplyToServer|send2MQCost={}ms|topic={}|bizSeqNo={}|uniqueId={}",
-                    endTime - startTime, replyTopic, seqNum, uniqueId, onExceptionContext.getException());
-            }
-        });
+        // 移除 eventMeshProducer.reply() 相关方法调用
     }
 
     private void doAclCheck(CloudEvent message) throws AclException {

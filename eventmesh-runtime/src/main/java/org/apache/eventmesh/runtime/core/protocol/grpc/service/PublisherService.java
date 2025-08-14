@@ -106,7 +106,7 @@ public class PublisherService extends PublisherServiceGrpc.PublisherServiceImplB
 
         EventEmitter<CloudEvent> emitter = new EventEmitter<>(responseObserver);
         threadPoolExecutor.submit(() -> {
-            RequestCloudEventProcessor requestMessageProcessor = new RequestCloudEventProcessor(eventMeshGrpcServer);
+            RequestCloudEventProcessor requestMessageProcessor = new RequestCloudEventProcessor(producer, authService, metricsRegistry);
             try {
                 requestMessageProcessor.process(request, emitter);
             } catch (Exception e) {

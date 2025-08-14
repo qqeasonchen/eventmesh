@@ -34,6 +34,11 @@ public class EventMeshTcpBootstrap implements EventMeshBootstrap {
 
     private final EventMeshServer eventMeshServer;
 
+    // Manual getter method since Lombok @Getter might not be working properly
+    public EventMeshTCPServer getEventMeshTcpServer() {
+        return eventMeshTcpServer;
+    }
+
     public EventMeshTcpBootstrap(EventMeshServer eventMeshServer) {
         this.eventMeshServer = eventMeshServer;
 

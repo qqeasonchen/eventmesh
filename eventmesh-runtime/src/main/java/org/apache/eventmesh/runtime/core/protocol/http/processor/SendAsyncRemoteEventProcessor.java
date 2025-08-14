@@ -233,7 +233,7 @@ public class SendAsyncRemoteEventProcessor implements AsyncHttpProcessor {
             return;
         }
 
-        final EventMeshProducer eventMeshProducer = eventMeshHTTPServer.getProducerManager().getEventMeshProducer(producerGroup);
+        final EventMeshProducer eventMeshProducer = eventMeshHTTPServer.getEventMeshServer().getProducerManager().getEventMeshProducer(producerGroup);
 
         if (!eventMeshProducer.isStarted()) {
             handlerSpecific.sendErrorResponse(EventMeshRetCode.EVENTMESH_GROUP_PRODUCER_STOPED_ERR, responseHeaderMap,

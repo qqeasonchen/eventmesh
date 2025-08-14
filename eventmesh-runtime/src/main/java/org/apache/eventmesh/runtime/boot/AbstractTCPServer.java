@@ -81,6 +81,7 @@ import lombok.extern.slf4j.Slf4j;
 public class AbstractTCPServer extends AbstractRemotingServer {
 
     private static final Logger MESSAGE_LOGGER = LoggerFactory.getLogger(EventMeshConstants.MESSAGE);
+    private static final Logger log = LoggerFactory.getLogger(AbstractTCPServer.class);
 
     private final EventMeshTCPConfiguration eventMeshTCPConfiguration;
     private ClientSessionGroupMapping clientSessionGroupMapping;
@@ -253,13 +254,13 @@ public class AbstractTCPServer extends AbstractRemotingServer {
                 }
 
                 if (Command.HELLO_REQUEST == cmd || Command.RECOMMEND_REQUEST == cmd) {
-                    MESSAGE_LOGGER.info("pkg|c2eventMesh|cmd={}|pkg={}", cmd, pkg);
+                    log.info("pkg|c2eventMesh|cmd={}|pkg={}", cmd, pkg);
                     processTcpCommandRequest(pkg, ctx, startTime, cmd);
                     return;
                 }
 
                 if (clientSessionGroupMapping.getSession(ctx) == null) {
-                    MESSAGE_LOGGER.info("pkg|c2eventMesh|cmd={}|pkg={}, no session is found", cmd, pkg);
+                    log.info("pkg|c2eventMesh|cmd={}|pkg={}, no session is found", cmd, pkg);
                     throw new Exception("no session is found");
                 }
 

@@ -1,3 +1,4 @@
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -23,7 +24,6 @@ import org.apache.eventmesh.protocol.api.exception.ProtocolHandleException;
 import org.apache.eventmesh.protocol.kafka.raw.message.RawKafkaMessage;
 import org.apache.eventmesh.spi.EventMeshExtensionType;
 import org.apache.eventmesh.spi.EventMeshSPI;
-import org.apache.eventmesh.spi.PluginInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,13 +43,12 @@ public class RawKafkaProtocolAdapter implements ProtocolAdaptor<RawKafkaMessage>
     private static final Logger log = LoggerFactory.getLogger(RawKafkaProtocolAdapter.class);
 
     @Override
-    public CloudEvent toCloudEvent(RawKafkaMessage rawMessage) throws ProtocolHandleException {
+    public io.cloudevents.CloudEvent toCloudEvent(RawKafkaMessage rawMessage) throws ProtocolHandleException {
         try {
-            CloudEventBuilder builder = CloudEventBuilder.fromSpecVersion(io.cloudevents.SpecVersion.V1_0)
-                .withId(rawMessage.getKey() != null ? rawMessage.getKey() : 
-                    rawMessage.getTopic() + "_" + System.currentTimeMillis())
-                .withSource(URI.create("kafka://" + rawMessage.getTopic()))
-                .withType("kafka.raw.message")
+            io.cloudevents.core.builder.CloudEventBuilder builder = io.cloudevents.core.builder.CloudEventBuilder.v1()
+                .withId(rawMessage.getKey() != null ? rawMessage.getKey() : java.util.UUID.randomUUID().toString())
+                .withSource(java.net.URI.create("/eventmesh/kafka"))
+                .withType("org.apache.eventmesh.kafka.raw")
                 .withSubject(rawMessage.getTopic());
 
             // Add raw Kafka headers as extensions
@@ -84,13 +83,16 @@ public class RawKafkaProtocolAdapter implements ProtocolAdaptor<RawKafkaMessage>
     }
 
     @Override
-    public List<CloudEvent> toBatchCloudEvent(RawKafkaMessage rawMessage) throws ProtocolHandleException {
-        // For single message, return as list with one element
-        return List.of(toCloudEvent(rawMessage));
+    public java.util.List<io.cloudevents.CloudEvent> toBatchCloudEvent(java.util.List<RawKafkaMessage> protocolList) throws ProtocolHandleException {
+        java.util.List<io.cloudevents.CloudEvent> result = new java.util.ArrayList<>();
+        for (RawKafkaMessage msg : protocolList) {
+            result.add(toCloudEvent(msg));
+        }
+        return result;
     }
 
     @Override
-    public ProtocolTransportObject fromCloudEvent(CloudEvent cloudEvent) throws ProtocolHandleException {
+    public RawKafkaMessage fromCloudEvent(io.cloudevents.CloudEvent cloudEvent) throws ProtocolHandleException {
         try {
             RawKafkaMessage rawMessage = new RawKafkaMessage();
             rawMessage.setTopic(cloudEvent.getSubject());
@@ -147,21 +149,6 @@ public class RawKafkaProtocolAdapter implements ProtocolAdaptor<RawKafkaMessage>
     }
 
     @Override
-    public void onLoad(PluginInfo pluginInfo) throws Exception {
-        log.info("Raw Kafka protocol adapter loaded: {}", pluginInfo.getProtocolType());
-    }
-
-    @Override
-    public void onUnload(PluginInfo pluginInfo) throws Exception {
-        log.info("Raw Kafka protocol adapter unloaded: {}", pluginInfo.getProtocolType());
-    }
-
-    @Override
-    public void onReload(PluginInfo pluginInfo) throws Exception {
-        log.info("Raw Kafka protocol adapter reloaded: {}", pluginInfo.getProtocolType());
-    }
-
-    @Override
     public String getVersion() {
         return "1.0.0";
     }
@@ -174,5 +161,4 @@ public class RawKafkaProtocolAdapter implements ProtocolAdaptor<RawKafkaMessage>
     @Override
     public boolean supportsHotReload() {
         return true;
-    }
-} 
+    }}

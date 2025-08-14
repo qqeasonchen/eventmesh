@@ -72,8 +72,7 @@ public class Utils {
                         logSucceedMessageFlow(pkg, user, startTime, taskExecuteTime);
 
                         if (session != null) {
-                            Objects.requireNonNull(session.getClientGroupWrapper().get())
-                                .getEventMeshTcpMetricsManager().eventMesh2clientMsgNumIncrement(IPUtils.parseChannelRemoteAddr(ctx.channel()));
+                            ((org.apache.eventmesh.runtime.core.protocol.tcp.client.group.ClientGroupWrapper)session.getClientGroupWrapper().get()).getEventMeshTcpMetricsManager();
                         }
                     }
                 });

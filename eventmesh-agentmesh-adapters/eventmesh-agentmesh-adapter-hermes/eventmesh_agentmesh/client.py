@@ -185,16 +185,32 @@ class AgentMeshClient:
         return resp.get("taskId", "")
 
     def get_task_status(self, task_id: str) -> TaskResult:
-        """Get current status of a task."""
+        """Get current status of a task.
+
+        Returns empty TaskResult if the task is not found (404).
+        """
         url = f"{self.gateway_url}/a2a/tasks/{task_id}"
-        resp = self._get(url)
-        return TaskResult.from_dict(resp)
+        try:
+            resp = self._get(url)
+            return TaskResult.from_dict(resp)
+        except AgentMeshError as e:
+            if "404" in str(e):
+                return TaskResult(task_id="", state="UNKNOWN")
+            raise
 
     def cancel_task(self, task_id: str) -> bool:
-        """Cancel a pending task."""
+        """Cancel a pending task.
+
+        Returns False if the task is not found (404).
+        """
         url = f"{self.gateway_url}/a2a/tasks/{task_id}"
-        self._delete(url)
-        return True
+        try:
+            self._delete(url)
+            return True
+        except AgentMeshError as e:
+            if "404" in str(e):
+                return False
+            raise
 
     def stream_task(self, task_id: str,
                     on_event: Callable[[str, str, Optional[str]], bool],
@@ -222,8 +238,10 @@ class AgentMeshClient:
                     if line == "":
                         # Event boundary
                         if event_buf:
-                            self._process_sse_event(event_buf, task_id, on_event)
+                            keep_going = self._process_sse_event(event_buf, task_id, on_event)
                             event_buf = ""
+                            if not keep_going:
+                                break
                     elif line.startswith(":"):
                         # SSE comment / heartbeat
                         pass
@@ -234,18 +252,33 @@ class AgentMeshClient:
 
     def _process_sse_event(self, raw: str, task_id: str,
                            on_event: Callable) -> bool:
-        """Parse an SSE event and call the handler."""
-        data = raw
-        if data.startswith("data: "):
-            data = data[6:]
+        """Parse an SSE event and call the handler.
+
+        Parses standard SSE format:
+            event: status
+            data: {"taskId": "x", "state": "WORKING"}
+
+        Extracts the 'data:' field, ignoring 'event:' and 'id:'.
+        """
+        data_payload = None
+        for line in raw.split("\n"):
+            line = line.strip()
+            if line.startswith("data:"):
+                data_payload = line[5:].strip()
+                break
+
+        if data_payload is None:
+            logger.warning("SSE event without data field: %s", raw[:100])
+            return True
+
         try:
-            event_obj = json.loads(data)
+            event_obj = json.loads(data_payload)
             event_task_id = event_obj.get("taskId", task_id)
             state = event_obj.get("state", "")
             event_data = event_obj.get("data")
             return on_event(event_task_id, state, event_data)
         except json.JSONDecodeError:
-            logger.warning("Failed to parse SSE event: %s", data[:100])
+            logger.warning("Failed to parse SSE event data: %s", data_payload[:100])
             return True
 
     # =========================================================================

@@ -23,6 +23,10 @@
 └─────────┘               └──────────────────┘
 ```
 
+> **适配器层**: 各框架的具体集成逻辑（技能注册、MCP 配置、Agent 编排）在 `eventmesh-agentmesh-adapters/` 中，引用本 SDK。参见 [adapters README](../eventmesh-agentmesh-adapters/README.md)。
+
+```
+
 ## 目录结构
 
 ```

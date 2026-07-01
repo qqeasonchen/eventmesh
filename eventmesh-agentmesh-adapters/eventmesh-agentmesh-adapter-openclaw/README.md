@@ -1,20 +1,32 @@
 # EventMesh AgentMesh — OpenClaw Adapter
 
-OpenClaw 多智能体编排系统接入 Apache EventMesh A2A AgentMesh 的 Go 适配器。
+OpenClaw 多智能体编排系统接入 EventMesh A2A AgentMesh 的适配器，基于 `eventmesh-agent-sdk`（Go）。
+
+## 依赖
+
+- [eventmesh-agent-sdk](../../eventmesh-agent-sdk/) → `go/pkg/eventmesh_agent/` — Go A2A 客户端库
 
 ## 工作原理
 
 ```
 ┌──────────────┐   HTTP/REST + Heartbeat   ┌──────────────────┐
 │  OpenClaw    │ ────────────────────────→ │  EventMesh A2A   │
-│  (Go)        │ ←── task response/SSE ─── │  Gateway :10105  │
-└──────────────┘                           └──────────────────┘
+│  Adapter     │ ←── task response/SSE ─── │  Gateway :10105  │
+│  (Go)        │                           └──────────────────┘
+└──────────────┘
+       │
+       │ import
+       ▼
+┌──────────────┐
+│ eventmesh-   │  Go A2A Client SDK
+│ agent-sdk/go │  (eventmesh_agent.NewClient)
+└──────────────┘
 ```
 
 ## 快速开始
 
 ```bash
-# 编译
+# 编译（go.mod 已配置 replace 指向 SDK）
 cd eventmesh-agentmesh-adapters/eventmesh-agentmesh-adapter-openclaw/
 go build -o openclaw-adapter .
 
@@ -28,14 +40,14 @@ A2A_GATEWAY_URL=http://localhost:10105 ./openclaw-adapter
 package main
 
 import (
-    agentmesh "github.com/qqeasonchen/eventmesh/eventmesh-agentmesh-adapters/eventmesh-agentmesh-adapter-openclaw/client"
+    "github.com/qqeasonchen/eventmesh/eventmesh-agent-sdk/go/pkg/eventmesh_agent"
 )
 
 func main() {
-    client := agentmesh.NewClient(agentmesh.Config{
+    client := eventmesh_agent.NewClient(eventmesh_agent.Config{
         GatewayURL: "http://localhost:10105",
         AgentName:  "default/default/openclaw-agent",
-        AgentCard: &agentmesh.AgentCard{
+        AgentCard: &eventmesh_agent.AgentCard{
             Name:        "openclaw-agent",
             Description: "OpenClaw multi-agent system",
             Version:     "1.0.0",
@@ -44,15 +56,8 @@ func main() {
     client.Start()
     defer client.Stop()
 
-    // Send task
     result, _ := client.SendTask("weather-agent", "Shenzhen")
     println(result.Data)
-
-    // List agents
-    agents, _ := client.ListAgents()
-    for _, a := range agents {
-        println(a["name"].(string))
-    }
 }
 ```
 

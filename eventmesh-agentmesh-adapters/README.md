@@ -2,56 +2,46 @@
 
 将外部 Agent 框架接入 Apache EventMesh A2A AgentMesh 的适配器集合。
 
+所有适配器依赖共享的 **[eventmesh-agent-sdk](../eventmesh-agent-sdk/)** — 多语言 A2A 客户端抽象层。
+
 ## 架构总览
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │                        EventMesh A2A Agent Mesh                              │
-│                                                                              │
 │  ┌────────────────────────────────────────────────────────────────────────┐ │
 │  │                    A2A Gateway (:10105)                                 │ │
-│  │  ┌──────────┐  ┌──────────┐  ┌──────────────┐  ┌──────────────────┐   │ │
-│  │  │ Agent    │  │ Task     │  │ SSE          │  │ Heartbeat/       │   │ │
-│  │  │ Registry │  │ Router   │  │ Streaming    │  │ Health           │   │ │
-│  │  └──────────┘  └──────────┘  └──────────────┘  └──────────────────┘   │ │
+│  │  Agent Registry / Task Router / SSE Streaming / Heartbeat              │ │
 │  └────────────────────────────────────────────────────────────────────────┘ │
-│                                                                              │
-│  ┌────────────────────────────────────────────────────────────────────────┐ │
-│  │                    CloudEvents + Topic Routing                          │ │
-│  │  a2a/v1/{ns}/agents/{agent}/request ←── task submission                │ │
-│  │  a2a/v1/{ns}/gateways/{gw}/response/{tid} ←── response routing         │ │
-│  │  a2a/v1/{ns}/gateways/{gw}/status/{tid} ←── status updates             │ │
-│  └────────────────────────────────────────────────────────────────────────┘ │
+│                    CloudEvents + Topic Routing                               │
 └──────────────────────────────────────────────────────────────────────────────┘
-                                    │
-            ┌───────────────────────┼───────────────────────┐
-            │                       │                       │
-            ▼                       ▼                       ▼
-    ┌───────────────┐     ┌───────────────┐     ┌───────────────┐
-    │ Hermes        │     │ Claude Code   │     │ OpenClaw      │
-    │ Adapter       │     │ Adapter       │     │ Adapter       │
-    │ (Python)      │     │ (MCP Bridge)  │     │ (Go)          │
-    │               │     │               │     │               │
-    │ · A2A Client  │     │ · MCP Server  │     │ · A2A Client  │
-    │ · REST API    │     │ · stdio JSON- │     │ · net/http     │
-    │ · urllib only │     │   RPC         │     │ · Heartbeat   │
-    └───────┬───────┘     └───────┬───────┘     └───────┬───────┘
-            │                       │                       │
-            ▼                       ▼                       ▼
-    ┌───────────────┐     ┌───────────────┐     ┌───────────────┐
-    │ Hermes        │     │ Claude Desktop│     │ OpenClaw      │
-    │ AI System     │     │ / Code CLI    │     │ Agent System  │
-    │ (Eason's)     │     │ (Anthropic)   │     │ (Open Source)  │
-    └───────────────┘     └───────────────┘     └───────────────┘
+                  │                          │                          │
+                  ▼                          ▼                          ▼
+    ┌──────────────────┐    ┌──────────────────┐    ┌──────────────────┐
+    │ eventmesh-agent- │    │ eventmesh-agent- │    │ eventmesh-agent- │
+    │ sdk/python       │    │ sdk/python/      │    │ sdk/go           │
+    │ (eventmesh_agent)│    │ integrations/mcp │    │ (eventmesh_agent)│
+    └────────┬─────────┘    └────────┬─────────┘    └────────┬─────────┘
+             │ import                │ import                 │ import
+    ┌────────▼─────────┐    ┌────────▼─────────┐    ┌────────▼─────────┐
+    │  Hermes Adapter  │    │ Claude Code      │    │ OpenClaw Adapter │
+    │  · hermes_agent  │    │ Adapter          │    │ · main.go        │
+    │  · 4技能注册      │    │ · MCP config     │    │ · 多Agent编排    │
+    └────────┬─────────┘    └────────┬─────────┘    └────────┬─────────┘
+             │                       │                       │
+    ┌────────▼─────────┐    ┌────────▼─────────┐    ┌────────▼─────────┐
+    │ Hermes AI        │    │ Claude Desktop   │    │ OpenClaw         │
+    │ (Eason's)        │    │ / Code CLI       │    │ Agent System     │
+    └──────────────────┘    └──────────────────┘    └──────────────────┘
 ```
 
 ## 适配器列表
 
-| 适配器 | 语言 | 协议 | 依赖 | 状态 |
-|--------|------|------|------|------|
-| **Hermes** | Python 3.6+ | HTTP REST (A2A) | 零外部依赖 | ✅ |
-| **Claude Code** | Python 3.6+ | MCP (stdio JSON-RPC) → A2A REST | 零外部依赖 | ✅ |
-| **OpenClaw** | Go 1.21+ | HTTP REST (A2A) | net/http only | ✅ |
+| 适配器 | 语言 | SDK 层 | 职责 |
+|--------|------|--------|------|
+| **Hermes** | Python | `eventmesh_agent` | 注册 Hermes 技能卡，连接 A2A Gateway |
+| **Claude Code** | Python (MCP) | `integrations/mcp` | MCP stdio bridge → A2A REST |
+| **OpenClaw** | Go | `go/pkg/eventmesh_agent` | OpenClaw 多 Agent 编排接入 |
 
 ## 接入流程
 
@@ -70,11 +60,11 @@ cd eventmesh-runtime
 3. 每 30s `POST /a2a/heartbeat` 发送心跳
 4. 通过 `/a2a/*` 端点收发任务
 
-### 3. 使用适配器
+### 3. 使用
 
 ```python
-# Hermes
-from eventmesh_agentmesh import AgentMeshClient
+# Hermes — 直接 import SDK
+from eventmesh_agent import AgentMeshClient
 client = AgentMeshClient(
     agent_name="default/default/hermes-assistant",
     agent_card={"name": "hermes", "skills": [...]}
@@ -84,12 +74,12 @@ result = client.send_task("weather-agent", "Shenzhen")
 ```
 
 ```json
-// Claude Code (~/.claude.json)
+// Claude Code — MCP 配置指向 SDK 中的 bridge
 {
   "mcpServers": {
     "eventmesh-agentmesh": {
       "command": "python3",
-      "args": ["claude_code_mcp_server.py"],
+      "args": ["eventmesh-agent-sdk/python/integrations/mcp/server.py"],
       "env": { "A2A_GATEWAY_URL": "http://localhost:10105" }
     }
   }
@@ -97,38 +87,36 @@ result = client.send_task("weather-agent", "Shenzhen")
 ```
 
 ```go
-// OpenClaw
-client := agentmesh.NewClient(agentmesh.Config{
+// OpenClaw — import SDK Go 包
+import "github.com/qqeasonchen/eventmesh/eventmesh-agent-sdk/go/pkg/eventmesh_agent"
+
+client := eventmesh_agent.NewClient(eventmesh_agent.Config{
     GatewayURL: "http://localhost:10105",
     AgentName:  "default/default/openclaw-agent",
 })
 client.Start()
-result, _ := client.SendTask("weather-agent", "Shenzhen")
 ```
 
 ## 目录结构
 
 ```
 eventmesh-agentmesh-adapters/
-├── README.md
-├── eventmesh-agentmesh-adapter-hermes/
-│   ├── setup.py
-│   ├── README.md
-│   ├── eventmesh_agentmesh/
-│   │   ├── __init__.py
-│   │   ├── client.py          # AgentMeshClient
-│   │   ├── agent.py           # AgentCard, AgentSkill models
-│   │   └── types.py           # TaskResult, TaskState
-│   └── examples/
-│       └── hermes_agent.py    # Full example
-├── eventmesh-agentmesh-adapter-claude-code/
-│   ├── README.md
-│   ├── claude_code_mcp_server.py  # MCP stdio bridge
-│   └── claude_desktop_config.json # Claude Desktop config
-└── eventmesh-agentmesh-adapter-openclaw/
-    ├── go.mod
-    ├── README.md
-    ├── main.go                    # Standalone adapter binary
-    └── client/
-        └── client.go              # Go A2A library
+├── README.md                                     ← 本文档
+├── eventmesh-agentmesh-adapter-hermes/            ← Hermes 适配器
+│   └── examples/hermes_agent.py                  ← 示例 Agent（import SDK）
+├── eventmesh-agentmesh-adapter-claude-code/       ← Claude Code 适配器
+│   └── claude_desktop_config.json                ← MCP 配置（指向 SDK bridge）
+└── eventmesh-agentmesh-adapter-openclaw/          ← OpenClaw 适配器
+    ├── go.mod                                     ← replace → SDK
+    └── main.go                                    ← 独立二进制（import SDK）
+```
+
+SDK 代码在 **[../eventmesh-agent-sdk/](../eventmesh-agent-sdk/)**：
+
+```
+eventmesh-agent-sdk/
+├── python/eventmesh_agent/    ← A2A Client SDK（AgentMeshClient）
+├── python/integrations/mcp/   ← MCP Bridge Server
+├── go/pkg/eventmesh_agent/    ← Go A2A Client SDK
+└── java/                      ← A2AAgentToolBridge 参考
 ```

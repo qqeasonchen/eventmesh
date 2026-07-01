@@ -1,28 +1,18 @@
 # EventMesh AgentMesh — Hermes Adapter
 
-Hermes AI 系统接入 Apache EventMesh AgentMesh (A2A 协议) 的 Python SDK。
+Hermes AI 系统接入 EventMesh A2A AgentMesh 的适配器，基于 `eventmesh-agent-sdk`（Python）。
 
-## 特性
+## 依赖
 
-- **零外部依赖** — 纯 Python 标准库 (urllib + json + threading)
-- **完整 A2A 协议支持** — AgentCard 注册、心跳、任务提交/查询/取消/流式
-- **开箱即用** — 一行代码注册 Hermes 为 AgentMesh 中的 Agent
-
-## 安装
-
-```bash
-# 从源码安装
-cd eventmesh-agentmesh-adapters/eventmesh-agentmesh-adapter-hermes/
-pip install -e .
-
-# 或直接导入（零安装）
-export PYTHONPATH=$PYTHONPATH:$(pwd)
-```
+- [eventmesh-agent-sdk](../../eventmesh-agent-sdk/) — 共享 A2A 客户端抽象层
 
 ## 快速开始
 
 ```python
-from eventmesh_agentmesh import AgentMeshClient
+import sys, os
+sys.path.insert(0, "../../eventmesh-agent-sdk/python")
+
+from eventmesh_agent import AgentMeshClient
 
 client = AgentMeshClient(
     gateway_url="http://localhost:10105",
@@ -43,25 +33,7 @@ client.start()
 result = client.send_task("weather-agent", "Shenzhen")
 print(result.data)
 
-# 异步任务
-task_id = client.send_task_async("other-agent", '{"skill":"chat","text":"hello"}')
-status = client.get_task_status(task_id)
-
-# 发现其他 Agent
-agents = client.list_agents()
-for agent in agents:
-    print(f"  {agent['name']} — {agent['status']}")
-
 client.stop()
-```
-
-## 架构
-
-```
-┌──────────────┐     HTTP/REST      ┌──────────────────┐     CloudEvents      ┌──────────────┐
-│   Hermes     │ ──── AgentCard ───→│  EventMesh A2A   │ ──── pub/sub ──────→│  Other       │
-│   (Python)   │ ←── task/response──│  Gateway :10105   │ ←── task/response──│  Agents      │
-└──────────────┘                    └──────────────────┘                    └──────────────┘
 ```
 
 ## 运行示例
@@ -69,4 +41,20 @@ client.stop()
 ```bash
 # 确保 EventMesh A2A Gateway 已启动（端口 10105）
 python examples/hermes_agent.py
+```
+
+## 架构
+
+```
+┌──────────────┐                     ┌──────────────────┐
+│ eventmesh-   │  import             │  Hermes Adapter  │
+│ agent-sdk    │ ◄─────────────────  │  (hermes_agent)  │
+│ (Python)     │                     └────────┬─────────┘
+└──────┬───────┘                              │
+       │ HTTP/REST                    定义 Hermes 技能卡
+       ▼                              (code-review / security-audit
+┌──────────────────┐                    infrastructure-ops / general-chat)
+│  EventMesh A2A   │
+│  Gateway :10105  │
+└──────────────────┘
 ```

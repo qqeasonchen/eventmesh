@@ -17,10 +17,14 @@ import logging
 import sys
 import os
 
-# Allow running from the hermes directory directly
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Point to the shared EventMesh Agent SDK
+_SDK_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))),
+    "eventmesh-agent-sdk", "python",
+)
+sys.path.insert(0, _SDK_PATH)
 
-from eventmesh_agentmesh import AgentMeshClient, TaskResult, TaskState
+from eventmesh_agent import AgentMeshClient, TaskResult, TaskState
 
 logging.basicConfig(
     level=logging.INFO,

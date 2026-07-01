@@ -13,7 +13,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/qqeasonchen/eventmesh/eventmesh-agentmesh-adapters/eventmesh-agentmesh-adapter-openclaw/client"
+	"github.com/qqeasonchen/eventmesh/eventmesh-agent-sdk/go/pkg/eventmesh_agent"
 )
 
 func main() {
@@ -26,18 +26,18 @@ func main() {
 		agentName = "default/default/openclaw-agent"
 	}
 
-	cfg := client.DefaultConfig()
+	cfg := eventmesh_agent.DefaultConfig()
 	cfg.GatewayURL = gatewayURL
 	cfg.AgentName = agentName
-	cfg.AgentCard = &client.AgentCard{
-		Name:        "openclaw-agent",
-		Description: "OpenClaw multi-agent orchestration system",
-		Version:     "1.0.0",
+	cfg.AgentCard = &eventmesh_agent.AgentCard{
+		Name:               "openclaw-agent",
+		Description:        "OpenClaw multi-agent orchestration system",
+		Version:            "1.0.0",
 		DefaultInputModes:  []string{"text/plain", "application/json"},
 		DefaultOutputModes: []string{"text/plain", "application/json"},
 	}
 
-	c := client.NewClient(cfg)
+	c := eventmesh_agent.NewClient(cfg)
 
 	// Handle incoming A2A tasks from other agents
 	c.SetRequestHandler(func(taskID, message string) (string, error) {

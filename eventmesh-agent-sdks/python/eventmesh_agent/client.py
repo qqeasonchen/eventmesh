@@ -319,10 +319,15 @@ class AgentMeshClient:
         return self._get(url)
 
     def get_agent_card(self, org_id: str = "default", unit_id: str = "default",
-                       agent_id: str = "") -> Dict[str, Any]:
-        """Get a specific agent's card."""
+                       agent_id: str = "") -> Optional[Dict[str, Any]]:
+        """Get a specific agent's card. Returns None if not found."""
         url = f"{self.gateway_url}/a2a/cards/card/{org_id}/{unit_id}/{agent_id}"
-        return self._get(url)
+        try:
+            return self._get(url)
+        except AgentMeshError as e:
+            if "404" in str(e):
+                return None
+            raise
 
     def health_check(self) -> Dict[str, Any]:
         """Check gateway health."""

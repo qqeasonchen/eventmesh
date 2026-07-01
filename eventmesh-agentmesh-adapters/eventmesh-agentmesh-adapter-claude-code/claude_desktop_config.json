@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "eventmesh-agentmesh": {
+      "command": "python3",
+      "args": [
+        "eventmesh-agentmesh-adapters/eventmesh-agentmesh-adapter-claude-code/claude_code_mcp_server.py"
+      ],
+      "env": {
+        "A2A_GATEWAY_URL": "http://localhost:10105"
+      }
+    }
+  }
+}

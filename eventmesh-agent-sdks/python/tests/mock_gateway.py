@@ -17,12 +17,15 @@ from urllib.parse import urlparse, parse_qs
 
 
 class A2AGatewayState:
-    """In-memory state for the mock gateway."""
+    """In-memory state for the mock gateway with multi-agent support."""
 
     def __init__(self):
         self.agents = {}          # agent_id -> agent_card
         self.heartbeats = {}      # agent_id -> last heartbeat epoch
         self.tasks = {}           # task_id -> task_info
+        self.agent_tasks = {}     # agent_key -> [task_id, ...]  (tasks routed to this agent)
+        self.task_children = {}   # parent_task_id -> [child_task_id, ...]
+        self.task_history = []    # ordered list of all completed task_ids
         self._lock = threading.Lock()
 
     def register_agent(self, org_id: str, unit_id: str, agent_id: str, card: dict):
@@ -30,6 +33,8 @@ class A2AGatewayState:
             key = f"{org_id}/{unit_id}/{agent_id}"
             self.agents[key] = card
             self.heartbeats[key] = time.time()
+            if key not in self.agent_tasks:
+                self.agent_tasks[key] = []
 
     def heartbeat(self, org_id: str, unit_id: str, agent_id: str):
         with self._lock:
@@ -40,7 +45,12 @@ class A2AGatewayState:
     def list_agents(self) -> list:
         with self._lock:
             return [
-                {"name": k, "status": "online", "lastHeartbeat": self.heartbeats.get(k, 0)}
+                {
+                    "name": k,
+                    "status": "online",
+                    "lastHeartbeat": self.heartbeats.get(k, 0),
+                    "taskCount": len(self.agent_tasks.get(k, [])),
+                }
                 for k in self.agents
             ]
 
@@ -49,7 +59,19 @@ class A2AGatewayState:
             key = f"{org_id}/{unit_id}/{agent_id}"
             return self.agents.get(key)
 
-    def create_task(self, target_agent: str, message: str, parent_task_id: str = "") -> dict:
+    def get_agent_tasks(self, org_id: str, unit_id: str, agent_id: str) -> list:
+        """Get all task IDs routed to a specific agent."""
+        with self._lock:
+            key = f"{org_id}/{unit_id}/{agent_id}"
+            return list(self.agent_tasks.get(key, []))
+
+    def get_task_chain(self, parent_task_id: str) -> list:
+        """Get all child task IDs for a parent task (recursive)."""
+        with self._lock:
+            return list(self.task_children.get(parent_task_id, []))
+
+    def create_task(self, target_agent: str, message: str,
+                    parent_task_id: str = "", caller_agent: str = "") -> dict:
         task_id = str(uuid.uuid4())[:8]
         task = {
             "taskId": task_id,
@@ -57,24 +79,37 @@ class A2AGatewayState:
             "message": message,
             "state": "SUBMITTED",
             "parentTaskId": parent_task_id,
+            "callerAgent": caller_agent,
             "createdAt": time.time(),
+            "children": [],
         }
         with self._lock:
             self.tasks[task_id] = task
+            # Track task routing
+            self.agent_tasks.setdefault(target_agent, []).append(task_id)
+            # Track parent-child chain
+            if parent_task_id:
+                self.task_children.setdefault(parent_task_id, []).append(task_id)
+                if parent_task_id in self.tasks:
+                    self.tasks[parent_task_id].setdefault("children", []).append(task_id)
 
         # Simulate async processing: move SUBMITTED -> WORKING -> COMPLETED
         def _process():
-            time.sleep(0.3)
+            time.sleep(0.25)
             with self._lock:
-                if task_id in self.tasks:
+                if task_id in self.tasks and self.tasks[task_id]["state"] not in ("CANCELLED",):
                     self.tasks[task_id]["state"] = "WORKING"
-            time.sleep(0.3)
+            time.sleep(0.25)
             with self._lock:
-                if task_id in self.tasks:
+                if task_id in self.tasks and self.tasks[task_id]["state"] not in ("CANCELLED",):
                     self.tasks[task_id]["state"] = "COMPLETED"
+                    # Route result with agent identity
                     self.tasks[task_id]["data"] = {
-                        "result": f"[{target_agent}] Processed: {message}",
+                        "result": f"[{target_agent}] Completed: {message[:60]}",
+                        "taskId": task_id,
+                        "targetAgent": target_agent,
                     }
+                    self.task_history.append(task_id)
 
         t = threading.Thread(target=_process, daemon=True)
         t.start()
@@ -91,6 +126,20 @@ class A2AGatewayState:
                 return True
             return False
 
+    def get_stats(self) -> dict:
+        """Return gateway statistics for multi-agent observability."""
+        with self._lock:
+            agent_task_counts = {
+                k: len(v) for k, v in self.agent_tasks.items()
+            }
+            return {
+                "totalAgents": len(self.agents),
+                "totalTasks": len(self.tasks),
+                "completedTasks": len(self.task_history),
+                "agentTaskCounts": agent_task_counts,
+                "parentChains": len(self.task_children),
+            }
+
     def stream_task(self, task_id: str):
         """Generator yielding SSE events for a task."""
         task = self.get_task(task_id)
@@ -102,7 +151,6 @@ class A2AGatewayState:
         for i, state in enumerate(states):
             if i > 0:
                 time.sleep(0.5)
-                # Refresh task state
                 task = self.get_task(task_id)
                 if task:
                     task["state"] = state
@@ -110,6 +158,7 @@ class A2AGatewayState:
                 "taskId": task_id,
                 "state": state,
                 "data": task.get("data") if state == "COMPLETED" else None,
+                "callerAgent": task.get("callerAgent", ""),
             }
             yield f"event: status\ndata: {json.dumps(event)}\n\n"
 
@@ -125,9 +174,12 @@ class MockA2AHandler(BaseHTTPRequestHandler):
     _ROUTE_HEARTBEAT = re.compile(r"^/a2a/heartbeat$")
     _ROUTE_HEALTH = re.compile(r"^/a2a/health$")
     _ROUTE_AGENTS = re.compile(r"^/a2a/agents$")
+    _ROUTE_STATS = re.compile(r"^/a2a/stats$")
     _ROUTE_TASKS = re.compile(r"^/a2a/tasks$")
     _ROUTE_TASK_BY_ID = re.compile(r"^/a2a/tasks/([^/]+)$")
     _ROUTE_TASK_STREAM = re.compile(r"^/a2a/tasks/([^/]+)/stream$")
+    _ROUTE_TASK_CHAIN = re.compile(r"^/a2a/tasks/([^/]+)/chain$")
+    _ROUTE_AGENT_TASKS = re.compile(r"^/a2a/agents/([^/]+)/([^/]+)/([^/]+)/tasks$")
 
     def log_message(self, format, *args):
         """Suppress default logging to stderr; use our own."""
@@ -186,7 +238,44 @@ class MockA2AHandler(BaseHTTPRequestHandler):
             self._send_json(200, self.gateway_state.list_agents())
             return
 
+        # Gateway stats (multi-agent observability)
+        if self._ROUTE_STATS.match(path):
+            self._send_json(200, self.gateway_state.get_stats())
+            return
+
         # Get agent card
+        m = self._ROUTE_CARD_GET.match(path)
+        if m:
+            org_id, unit_id, agent_id = m.groups()
+            card = self.gateway_state.get_agent_card(org_id, unit_id, agent_id)
+            if card:
+                self._send_json(200, card)
+            else:
+                self._send_json(404, {"error": "agent not found"})
+            return
+
+        # Get agent's tasks
+        m = self._ROUTE_AGENT_TASKS.match(path)
+        if m:
+            org_id, unit_id, agent_id = m.groups()
+            task_ids = self.gateway_state.get_agent_tasks(org_id, unit_id, agent_id)
+            tasks = [self.gateway_state.get_task(tid) for tid in task_ids]
+            self._send_json(200, [t for t in tasks if t])
+            return
+
+        # Get task chain (children of a parent)
+        m = self._ROUTE_TASK_CHAIN.match(path)
+        if m:
+            parent_id = m.group(1)
+            child_ids = self.gateway_state.get_task_chain(parent_id)
+            children = [self.gateway_state.get_task(tid) for tid in child_ids]
+            self._send_json(200, {
+                "parentTaskId": parent_id,
+                "children": [t for t in children if t],
+            })
+            return
+
+        # Get task status
         m = self._ROUTE_CARD_GET.match(path)
         if m:
             org_id, unit_id, agent_id = m.groups()
@@ -257,8 +346,11 @@ class MockA2AHandler(BaseHTTPRequestHandler):
             target_agent = body.get("targetAgent", "")
             message = body.get("message", "")
             parent_task_id = body.get("parentTaskId", "")
+            caller_agent = body.get("callerAgent", "")
 
-            task = self.gateway_state.create_task(target_agent, message, parent_task_id)
+            task = self.gateway_state.create_task(
+                target_agent, message, parent_task_id, caller_agent
+            )
 
             if mode == "sync":
                 # Wait for task completion
@@ -310,8 +402,13 @@ class MockGateway:
     def handler_class(self):
         return MockA2AHandler
 
+    def reset(self):
+        """Reset gateway state (clear agents, tasks, etc.)."""
+        MockA2AHandler.gateway_state = A2AGatewayState()
+
     def start(self):
         """Start the mock gateway in a background thread."""
+        self.reset()  # always fresh state on start
         self._server = HTTPServer((self.host, self.port), self.handler_class)
         self.port = self._server.server_port  # read back actual port (0 = OS-assigned)
         self._thread = threading.Thread(target=self._server.serve_forever, daemon=True)

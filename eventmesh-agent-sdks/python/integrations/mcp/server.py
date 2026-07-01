@@ -9,7 +9,7 @@ Usage with Claude Code / Cursor:
       "mcpServers": {
         "eventmesh-agent": {
           "command": "python3",
-          "args": ["eventmesh-agent-sdk/python/integrations/mcp/server.py"],
+          "args": ["eventmesh-agent-sdks/python/integrations/mcp/server.py"],
           "env": {
             "A2A_GATEWAY_URL": "http://localhost:10105"
           }
@@ -305,7 +305,7 @@ def handle_request(req: dict):
             "protocolVersion": "2024-11-05",
             "capabilities": {"tools": {}},
             "serverInfo": {
-                "name": "eventmesh-agent-sdk-mcp",
+                "name": "eventmesh-agent-sdks-mcp",
                 "version": "0.1.0",
             },
         })

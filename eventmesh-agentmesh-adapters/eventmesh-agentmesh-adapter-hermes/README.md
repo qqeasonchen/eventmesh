@@ -1,16 +1,16 @@
 # EventMesh AgentMesh — Hermes Adapter
 
-Hermes AI 系统接入 EventMesh A2A AgentMesh 的适配器，基于 `eventmesh-agent-sdk`（Python）。
+Hermes AI 系统接入 EventMesh A2A AgentMesh 的适配器，基于 `eventmesh-agent-sdks`（Python）。
 
 ## 依赖
 
-- [eventmesh-agent-sdk](../../eventmesh-agent-sdk/) — 共享 A2A 客户端抽象层
+- [eventmesh-agent-sdks](../../eventmesh-agent-sdks/) — 共享 A2A 客户端抽象层
 
 ## 快速开始
 
 ```python
 import sys, os
-sys.path.insert(0, "../../eventmesh-agent-sdk/python")
+sys.path.insert(0, "../../eventmesh-agent-sdks/python")
 
 from eventmesh_agent import AgentMeshClient
 

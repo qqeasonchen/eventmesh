@@ -3,7 +3,7 @@
     "eventmesh-agentmesh": {
       "command": "python3",
       "args": [
-        "eventmesh-agent-sdk/python/integrations/mcp/server.py"
+        "eventmesh-agent-sdks/python/integrations/mcp/server.py"
       ],
       "env": {
         "A2A_GATEWAY_URL": "http://localhost:10105"

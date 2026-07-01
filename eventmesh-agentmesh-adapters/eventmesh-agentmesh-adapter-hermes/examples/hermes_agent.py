@@ -1,8 +1,8 @@
 """
 Hermes AgentMesh Integration Example.
 
-This example demonstrates how to connect Hermes (Eason's internal AI system)
-to EventMesh's A2A Agent Mesh.
+Connects Hermes (Eason's internal AI system) to EventMesh's A2A Agent Mesh.
+Demonstrates: registration, heartbeat, task send/receive, agent discovery.
 
 Prerequisites:
     1. EventMesh A2A Gateway running on localhost:10105
@@ -10,17 +10,23 @@ Prerequisites:
 
 Usage:
     python hermes_agent.py
+
+Environment:
+    A2A_GATEWAY_URL  — Gateway URL (default: http://localhost:10105)
+    A2A_AGENT_NAME   — Agent identity (default: default/default/hermes-assistant)
 """
 
 import json
 import logging
-import sys
 import os
+import signal
+import sys
+import time
 
 # Point to the shared EventMesh Agent SDK
 _SDK_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))),
-    "eventmesh-agent-sdk", "python",
+    "eventmesh-agent-sdks", "python",
 )
 sys.path.insert(0, _SDK_PATH)
 
@@ -46,109 +52,172 @@ def create_hermes_agent_card() -> dict:
             {
                 "id": "code-review",
                 "name": "Code Review",
-                "description": "Review code changes, identify bugs, and suggest improvements",
+                "description": "Review code changes, identify bugs, suggest improvements",
                 "tags": ["code", "review", "security"],
+                "inputModes": ["text/plain", "application/json"],
+                "outputModes": ["text/plain", "application/json"],
             },
             {
                 "id": "security-audit",
                 "name": "Security Audit",
                 "description": "Audit MCP servers, skills, and configurations for security risks",
                 "tags": ["security", "audit", "mcp"],
+                "inputModes": ["text/plain", "application/json"],
+                "outputModes": ["text/plain", "application/json"],
             },
             {
                 "id": "infrastructure-ops",
                 "name": "Infrastructure Operations",
-                "description": "Manage middleware infrastructure, deployments, and monitoring",
+                "description": "Manage middleware infrastructure, deployments, monitoring",
                 "tags": ["infrastructure", "ops", "monitoring"],
+                "inputModes": ["text/plain", "application/json"],
+                "outputModes": ["text/plain", "application/json"],
             },
             {
                 "id": "general-chat",
                 "name": "General AI Chat",
                 "description": "General-purpose AI conversation and task assistance",
                 "tags": ["chat", "ai", "assistant"],
+                "inputModes": ["text/plain"],
+                "outputModes": ["text/plain"],
             },
         ],
         "documentation_url": "https://github.com/qqeasonchen/hermes",
+        "defaultInputModes": ["text/plain", "application/json"],
+        "defaultOutputModes": ["text/plain", "application/json"],
     }
 
 
 def handle_incoming_task(task_id: str, message: str) -> str:
     """Handle incoming A2A task requests from other agents.
 
-    In production, this would route to Hermes' internal AI processing.
+    In production, this would route to Hermes' internal AI processing pipeline.
     """
-    logger.info("Received task: %s -> %s", task_id, message[:100])
+    logger.info("Received task: %s -> msg=%s", task_id, message[:120])
 
-    # Parse the request
     try:
         request = json.loads(message) if message.startswith("{") else {"text": message}
     except json.JSONDecodeError:
         request = {"text": message}
 
-    # Route based on skill
     skill = request.get("skill", "general-chat")
-    prompt = request.get("text", "")
+    prompt = request.get("text", message)
 
-    # In production, this calls Hermes' AI model
-    response = f"[Hermes] Processed '{skill}' task: {prompt[:50]}..."
-    logger.info("Task completed: %s", task_id)
+    # Route by skill (in production, call Hermes AI model)
+    handlers = {
+        "code-review": lambda: f"[Hermes] Code review complete for: {prompt[:60]}",
+        "security-audit": lambda: f"[Hermes] Security audit passed for: {prompt[:60]}",
+        "infrastructure-ops": lambda: f"[Hermes] Infrastructure operation executed: {prompt[:60]}",
+    }
+    handler = handlers.get(skill, lambda: f"[Hermes] Chat response to: {prompt[:60]}")
+    response = handler()
+
+    logger.info("Task completed: %s (skill=%s)", task_id, skill)
     return response
 
 
 def main():
-    # Connect to A2A Gateway
+    gateway_url = os.environ.get("A2A_GATEWAY_URL", "http://localhost:10105")
+    agent_name = os.environ.get("A2A_AGENT_NAME", "default/default/hermes-assistant")
+
+    logger.info("Hermes AgentMesh Adapter v1.0.0")
+    logger.info("  Gateway: %s", gateway_url)
+    logger.info("  Agent:   %s", agent_name)
+
+    # --- Phase 1: Connect ---
     client = AgentMeshClient(
-        gateway_url=os.environ.get("A2A_GATEWAY_URL", "http://localhost:10105"),
-        agent_name=os.environ.get("A2A_AGENT_NAME", "default/default/hermes-assistant"),
+        gateway_url=gateway_url,
+        agent_name=agent_name,
         agent_card=create_hermes_agent_card(),
         heartbeat_interval=30,
     )
-
-    # Set handler for incoming tasks from other agents
     client.set_request_handler(handle_incoming_task)
 
-    # Start: register card + heartbeat
-    logger.info("Starting Hermes AgentMesh client...")
-    client.start()
-
     try:
-        # Check gateway health
+        client.start()
+    except Exception as e:
+        logger.error("Failed to start: %s", e)
+        sys.exit(1)
+
+    # Graceful shutdown
+    shutdown = [False]
+
+    def on_signal(sig, frame):
+        logger.info("Received signal %s, shutting down...", sig)
+        shutdown[0] = True
+
+    signal.signal(signal.SIGINT, on_signal)
+    signal.signal(signal.SIGTERM, on_signal)
+
+    # --- Phase 2: Discovery ---
+    try:
         health = client.health_check()
         logger.info("Gateway health: %s", json.dumps(health, indent=2))
-
-        # List all registered agents
-        agents = client.list_agents()
-        logger.info("Registered agents: %d", len(agents))
-        for agent in agents:
-            logger.info("  - %s (status: %s)", agent.get("name", "?"), agent.get("status", "?"))
-
-        # Example: send a task to the weather agent
-        logger.info("Sending task to weather-agent...")
-        result = client.send_task("weather-agent", "Shenzhen")
-        logger.info("Result: %s", result)
-
-        # Example: async task submission
-        task_id = client.send_task_async("weather-agent", "Beijing")
-        logger.info("Async task submitted: %s", task_id)
-
-        # Poll for result
-        import time
-        for _ in range(10):
-            status = client.get_task_status(task_id)
-            if status.is_terminal():
-                logger.info("Async result: %s", status)
-                break
-            time.sleep(1)
-
-        # Keep alive to receive incoming requests
-        logger.info("Hermes agent is running. Press Ctrl+C to stop.")
-        import threading
-        threading.Event().wait()
-
-    except KeyboardInterrupt:
-        logger.info("Shutting down...")
-    finally:
+    except Exception as e:
+        logger.warning("Health check failed (gateway may not be running): %s", e)
         client.stop()
+        sys.exit(1)
+
+    try:
+        agents = client.list_agents()
+        logger.info("Registered agents (%d):", len(agents))
+        for a in agents:
+            logger.info("  - %-30s status=%-10s skills=%d",
+                        a.get("name", "?"), a.get("status", "?"),
+                        len(a.get("skills", [])))
+    except Exception as e:
+        logger.warning("List agents failed: %s", e)
+
+    # --- Phase 3: Demonstrate task patterns ---
+    # Sync task
+    logger.info("--- Sync task demo ---")
+    try:
+        result = client.send_task("weather-agent", json.dumps({
+            "skill": "weather",
+            "text": "What's the weather in Shenzhen?",
+        }))
+        logger.info("Sync result: state=%s data=%s", result.state, result.data[:100] if result.data else "(empty)")
+    except Exception as e:
+        logger.warning("Sync task failed: %s", e)
+
+    # Async + wait
+    logger.info("--- Async task demo ---")
+    try:
+        task_id = client.send_task_async("weather-agent", "Beijing weather?")
+        logger.info("Async task submitted: %s", task_id)
+        result = client.wait_for_task(task_id, poll_interval=2, max_wait=30)
+        logger.info("Async result: state=%s data=%s", result.state, result.data[:100] if result.data else "(empty)")
+    except TimeoutError:
+        logger.warning("Async task timed out (gateway may not have a real handler)")
+    except Exception as e:
+        logger.warning("Async task failed: %s", e)
+
+    # SSE stream
+    logger.info("--- SSE stream demo ---")
+    try:
+        task_id = client.send_task_async("analyst", "Analyze market trends")
+        logger.info("Streaming task: %s", task_id)
+
+        def on_event(tid, state, data):
+            logger.info("  SSE: %s -> %s", tid, state)
+            # Stop when done
+            return state not in ("COMPLETED", "FAILED", "CANCELLED")
+
+        client.stream_task(task_id, on_event, timeout=15)
+    except Exception as e:
+        logger.warning("SSE stream failed: %s", e)
+
+    # --- Phase 4: Running ---
+    logger.info("=" * 60)
+    logger.info("Hermes agent is running. Press Ctrl+C to stop.")
+    logger.info("Listening for incoming A2A tasks from other agents...")
+    logger.info("=" * 60)
+
+    while not shutdown[0]:
+        time.sleep(1)
+
+    client.stop()
+    logger.info("Hermes agent stopped.")
 
 
 if __name__ == "__main__":

@@ -1,10 +1,10 @@
 # EventMesh AgentMesh — OpenClaw Adapter
 
-OpenClaw 多智能体编排系统接入 EventMesh A2A AgentMesh 的适配器，基于 `eventmesh-agent-sdk`（Go）。
+OpenClaw 多智能体编排系统接入 EventMesh A2A AgentMesh 的适配器，基于 `eventmesh-agent-sdks`（Go）。
 
 ## 依赖
 
-- [eventmesh-agent-sdk](../../eventmesh-agent-sdk/) → `go/pkg/eventmesh_agent/` — Go A2A 客户端库
+- [eventmesh-agent-sdks](../../eventmesh-agent-sdks/) → `go/pkg/eventmesh_agent/` — Go A2A 客户端库
 
 ## 工作原理
 
@@ -40,7 +40,7 @@ A2A_GATEWAY_URL=http://localhost:10105 ./openclaw-adapter
 package main
 
 import (
-    "github.com/qqeasonchen/eventmesh/eventmesh-agent-sdk/go/pkg/eventmesh_agent"
+    "github.com/qqeasonchen/eventmesh/eventmesh-agent-sdks/go/pkg/eventmesh_agent"
 )
 
 func main() {

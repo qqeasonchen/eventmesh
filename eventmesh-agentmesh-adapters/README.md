@@ -2,7 +2,7 @@
 
 将外部 Agent 框架接入 Apache EventMesh A2A AgentMesh 的适配器集合。
 
-所有适配器依赖共享的 **[eventmesh-agent-sdk](../eventmesh-agent-sdk/)** — 多语言 A2A 客户端抽象层。
+所有适配器依赖共享的 **[eventmesh-agent-sdks](../eventmesh-agent-sdks/)** — 多语言 A2A 客户端抽象层。
 
 ## 架构总览
 
@@ -79,7 +79,7 @@ result = client.send_task("weather-agent", "Shenzhen")
   "mcpServers": {
     "eventmesh-agentmesh": {
       "command": "python3",
-      "args": ["eventmesh-agent-sdk/python/integrations/mcp/server.py"],
+      "args": ["eventmesh-agent-sdks/python/integrations/mcp/server.py"],
       "env": { "A2A_GATEWAY_URL": "http://localhost:10105" }
     }
   }
@@ -88,7 +88,7 @@ result = client.send_task("weather-agent", "Shenzhen")
 
 ```go
 // OpenClaw — import SDK Go 包
-import "github.com/qqeasonchen/eventmesh/eventmesh-agent-sdk/go/pkg/eventmesh_agent"
+import "github.com/qqeasonchen/eventmesh/eventmesh-agent-sdks/go/pkg/eventmesh_agent"
 
 client := eventmesh_agent.NewClient(eventmesh_agent.Config{
     GatewayURL: "http://localhost:10105",
@@ -111,10 +111,10 @@ eventmesh-agentmesh-adapters/
     └── main.go                                    ← 独立二进制（import SDK）
 ```
 
-SDK 代码在 **[../eventmesh-agent-sdk/](../eventmesh-agent-sdk/)**：
+SDK 代码在 **[../eventmesh-agent-sdks/](../eventmesh-agent-sdks/)**：
 
 ```
-eventmesh-agent-sdk/
+eventmesh-agent-sdks/
 ├── python/eventmesh_agent/    ← A2A Client SDK（AgentMeshClient）
 ├── python/integrations/mcp/   ← MCP Bridge Server
 ├── go/pkg/eventmesh_agent/    ← Go A2A Client SDK

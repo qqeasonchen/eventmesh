@@ -30,7 +30,7 @@
 ## 目录结构
 
 ```
-eventmesh-agent-sdk/
+eventmesh-agent-sdks/
 ├── python/                 # Python SDK
 │   ├── eventmesh_agent/    # 核心 A2A 客户端
 │   ├── integrations/       # 框架集成
@@ -72,13 +72,13 @@ client.stream_task(task_id, on_event=lambda tid, state, data: print(state))
 
 安装：
 ```bash
-pip install ./eventmesh-agent-sdk/python
+pip install ./eventmesh-agent-sdks/python
 ```
 
 ## Go SDK
 
 ```go
-import "github.com/qqeasonchen/eventmesh/eventmesh-agent-sdk/go/pkg/eventmesh_agent"
+import "github.com/qqeasonchen/eventmesh/eventmesh-agent-sdks/go/pkg/eventmesh_agent"
 
 cfg := eventmesh.DefaultConfig()
 cfg.GatewayURL = "http://localhost:10105"
@@ -95,7 +95,7 @@ client.Start()
   "mcpServers": {
     "eventmesh-agent": {
       "command": "python3",
-      "args": ["eventmesh-agent-sdk/python/integrations/mcp/server.py"],
+      "args": ["eventmesh-agent-sdks/python/integrations/mcp/server.py"],
       "env": { "A2A_GATEWAY_URL": "http://localhost:10105" }
     }
   }

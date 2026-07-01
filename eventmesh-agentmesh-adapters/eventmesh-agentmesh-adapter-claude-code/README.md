@@ -1,10 +1,10 @@
 # EventMesh AgentMesh — Claude Code Adapter
 
-Claude Code 通过 MCP 协议接入 EventMesh A2A AgentMesh 的适配器，基于 `eventmesh-agent-sdk` 的 MCP Bridge。
+Claude Code 通过 MCP 协议接入 EventMesh A2A AgentMesh 的适配器，基于 `eventmesh-agent-sdks` 的 MCP Bridge。
 
 ## 依赖
 
-- [eventmesh-agent-sdk](../../eventmesh-agent-sdk/) → `python/integrations/mcp/server.py` — MCP stdio bridge
+- [eventmesh-agent-sdks](../../eventmesh-agent-sdks/) → `python/integrations/mcp/server.py` — MCP stdio bridge
 
 ## 工作原理
 
@@ -32,7 +32,7 @@ Claude Code 原生支持 MCP 协议。通过 SDK 中的 MCP Bridge Server，Clau
     "eventmesh-agentmesh": {
       "command": "python3",
       "args": [
-        "eventmesh-agent-sdk/python/integrations/mcp/server.py"
+        "eventmesh-agent-sdks/python/integrations/mcp/server.py"
       ],
       "env": {
         "A2A_GATEWAY_URL": "http://localhost:10105"
@@ -49,7 +49,7 @@ Claude Code 原生支持 MCP 协议。通过 SDK 中的 MCP Bridge Server，Clau
   "mcpServers": {
     "eventmesh-agentmesh": {
       "command": "python3",
-      "args": ["eventmesh-agent-sdk/python/integrations/mcp/server.py"],
+      "args": ["eventmesh-agent-sdks/python/integrations/mcp/server.py"],
       "env": { "A2A_GATEWAY_URL": "http://localhost:10105" }
     }
   }

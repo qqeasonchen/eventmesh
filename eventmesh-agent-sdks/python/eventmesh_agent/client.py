@@ -101,6 +101,10 @@ class AgentMeshClient:
             self._heartbeat_thread = None
         logger.info("AgentMeshClient stopped: agent=%s", self.agent_name)
 
+    def is_started(self) -> bool:
+        """Return whether the client is started and registered."""
+        return self._started
+
     def set_request_handler(self, handler: Callable[[str, str], str]):
         """Set handler for incoming A2A task requests.
 
@@ -280,6 +284,30 @@ class AgentMeshClient:
         except json.JSONDecodeError:
             logger.warning("Failed to parse SSE event data: %s", data_payload[:100])
             return True
+
+    def wait_for_task(self, task_id: str,
+                      poll_interval: float = 1.0,
+                      max_wait: float = 120) -> TaskResult:
+        """Poll task status until terminal state or timeout.
+
+        Args:
+            task_id: Task ID to poll
+            poll_interval: Seconds between polls
+            max_wait: Maximum total wait time in seconds
+
+        Returns:
+            TaskResult in terminal state
+
+        Raises:
+            TimeoutError: If task doesn't complete within max_wait
+        """
+        start = time.time()
+        while time.time() - start < max_wait:
+            result = self.get_task_status(task_id)
+            if result and result.is_terminal():
+                return result
+            time.sleep(poll_interval)
+        raise TimeoutError(f"Task {task_id} did not complete within {max_wait}s")
 
     # =========================================================================
     # Discovery

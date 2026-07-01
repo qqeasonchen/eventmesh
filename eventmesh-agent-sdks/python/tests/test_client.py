@@ -6,7 +6,7 @@ Covers: registration, heartbeat, task sync/async/cancel/stream,
 agent discovery, health check, and error handling.
 
 Run:
-    cd eventmesh-agent-sdk/python
+    cd eventmesh-agent-sdks/python
     python3 tests/test_client.py
 """
 

@@ -12,7 +12,7 @@ The MCP server is spawned as a subprocess so stdin/stdout are real pipes.
 Server communicates with a MockGateway over HTTP.
 
 Run:
-    cd eventmesh-agentmesh-adapters/eventmesh-agentmesh-adapter-claude-code
+    cd eventmesh-agent-adapters/eventmesh-agent-adapter-claude-code
     PYTHONPATH=../../eventmesh-agent-sdks/python:../../eventmesh-agent-sdks/python/tests \\
         python3 tests/test_mcp_bridge.py
 """

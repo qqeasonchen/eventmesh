@@ -1,6 +1,8 @@
-# EventMesh AgentMesh Adapters
+# EventMesh Agent Adapters
 
-将外部 Agent 框架接入 Apache EventMesh A2A AgentMesh 的适配器集合。
+将外部 Agent 框架接入 Apache EventMesh A2A AgentMesh 的适配器 Skill 集合。
+
+**每个适配器运行即接入，`python run.py` 或 `go run .` 即可注册到 AgentMesh。**
 
 所有适配器依赖共享的 **[eventmesh-agent-sdks](../eventmesh-agent-sdks/)** — 多语言 A2A 客户端抽象层。
 
@@ -37,11 +39,11 @@
 
 ## 适配器列表
 
-| 适配器 | 语言 | SDK 层 | 职责 |
-|--------|------|--------|------|
-| **Hermes** | Python | `eventmesh_agent` | 注册 Hermes 技能卡，连接 A2A Gateway |
-| **Claude Code** | Python (MCP) | `integrations/mcp` | MCP stdio bridge → A2A REST |
-| **OpenClaw** | Go | `go/pkg/eventmesh_agent` | OpenClaw 多 Agent 编排接入 |
+| 适配器 | 语言 | Skills | 启动方式 |
+|--------|------|--------|----------|
+| **Hermes** | Python | code-review, security-audit, infrastructure-ops, general-chat | `python run.py` |
+| **Claude Code** | Python (MCP) | a2a_list_agents, a2a_send_task, a2a_get_task_status, a2a_health_check, a2a_get_agent_card | `claude mcp add eventmesh-agent -- python run.py` |
+| **OpenClaw** | Go | multi-agent-orchestration, task-decomposition, agent-routing, workflow-execution | `go run .` |
 
 ## 接入流程
 
@@ -52,9 +54,14 @@ cd eventmesh-runtime
 # Gateway 默认端口 10105
 ```
 
-### 2. 注册 Agent
+### 2. 启动 Agent Skill（以 Hermes 为例）
 
-每个外部 Agent 需要：
+```bash
+cd eventmesh-agent-adapters/eventmesh-agent-adapter-hermes
+python run.py
+```
+
+Agent Skill 会自动完成：
 1. 定义 AgentCard（名称、描述、技能、接口）
 2. `POST /a2a/cards/card/{org}/{unit}/{agent}` 注册
 3. 每 30s `POST /a2a/heartbeat` 发送心跳
@@ -77,7 +84,7 @@ result = client.send_task("weather-agent", "Shenzhen")
 // Claude Code — MCP 配置指向 SDK 中的 bridge
 {
   "mcpServers": {
-    "eventmesh-agentmesh": {
+    "eventmesh-agent": {
       "command": "python3",
       "args": ["eventmesh-agent-sdks/python/integrations/mcp/server.py"],
       "env": { "A2A_GATEWAY_URL": "http://localhost:10105" }
@@ -100,13 +107,13 @@ client.Start()
 ## 目录结构
 
 ```
-eventmesh-agentmesh-adapters/
+eventmesh-agent-adapters/
 ├── README.md                                     ← 本文档
-├── eventmesh-agentmesh-adapter-hermes/            ← Hermes 适配器
+├── eventmesh-agent-adapter-hermes/            ← Hermes 适配器
 │   └── examples/hermes_agent.py                  ← 示例 Agent（import SDK）
-├── eventmesh-agentmesh-adapter-claude-code/       ← Claude Code 适配器
+├── eventmesh-agent-adapter-claude-code/       ← Claude Code 适配器
 │   └── claude_desktop_config.json                ← MCP 配置（指向 SDK bridge）
-└── eventmesh-agentmesh-adapter-openclaw/          ← OpenClaw 适配器
+└── eventmesh-agent-adapter-openclaw/          ← OpenClaw 适配器
     ├── go.mod                                     ← replace → SDK
     └── main.go                                    ← 独立二进制（import SDK）
 ```

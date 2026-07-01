@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "eventmesh-agentmesh": {
+    "eventmesh-agent": {
       "command": "python3",
       "args": [
         "eventmesh-agent-sdks/python/integrations/mcp/server.py"

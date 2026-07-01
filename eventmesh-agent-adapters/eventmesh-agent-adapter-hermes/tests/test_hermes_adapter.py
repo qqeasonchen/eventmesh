@@ -5,7 +5,7 @@ Tests the full Hermes agent integration against a mock A2A Gateway,
 including card creation, skill routing, lifecycle management, and error handling.
 
 Run:
-    cd eventmesh-agentmesh-adapters/eventmesh-agentmesh-adapter-hermes
+    cd eventmesh-agent-adapters/eventmesh-agent-adapter-hermes
     PYTHONPATH=../../eventmesh-agent-sdks/python python3 tests/test_hermes_adapter.py
 """
 

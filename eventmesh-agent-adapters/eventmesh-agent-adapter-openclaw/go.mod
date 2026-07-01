@@ -1,4 +1,4 @@
-module github.com/qqeasonchen/eventmesh/eventmesh-agentmesh-adapters/eventmesh-agentmesh-adapter-openclaw
+module github.com/qqeasonchen/eventmesh/eventmesh-agent-adapters/eventmesh-agent-adapter-openclaw
 
 go 1.21
 
